@@ -1,0 +1,4 @@
+.env
+*.exe
+config/*.exe
+config/*.bin
