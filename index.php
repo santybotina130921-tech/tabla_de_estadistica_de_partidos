@@ -114,7 +114,7 @@ if (isset($_POST['local'], $_POST['visitante'])) {
             width: 260px; margin: 0; padding: 16px 42px 16px 18px;
             background: linear-gradient(180deg, #14181d, #0a0c0f);
             border: 1px solid #2b2f36; border-radius: 16px;
-            color: #fff; font-size: 15px; font-weight: 700; letter-spacing: .3px;
+            color: #00ff00; font-size: 15px; font-weight: 700; letter-spacing: .3px;
             text-align: left; cursor: pointer; color-scheme: dark;
             box-shadow: 0 6px 18px rgba(0,0,0,.45), inset 0 1px 0 rgba(255,255,255,.03);
             transition: border-color .2s, box-shadow .2s;
