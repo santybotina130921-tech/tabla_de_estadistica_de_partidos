@@ -43,21 +43,31 @@ foreach ($cacheStmt->fetchAll(PDO::FETCH_ASSOC) as $row) {
     $cache[$row['equipo_nombre']] = $row['highlightly_id'];
 }
 
-$pendientes = [];
+// Límite de equipos NUEVOS a verificar por corrida, para no gastar todo el
+// cupo diario de una sola vez (cada equipo puede costar hasta ~5 peticiones
+// si no lo encuentra a la primera). Ajusta este número si quieres.
+$LIMITE_POR_CORRIDA = 15;
+
+$pendientesTotal = [];
 $yaVerificados = ['ok' => 0, 'fail' => 0];
 foreach ($equipos as $e) {
     if (array_key_exists($e['equipo_nombre'], $cache)) {
         $cache[$e['equipo_nombre']] ? $yaVerificados['ok']++ : $yaVerificados['fail']++;
     } else {
-        $pendientes[] = $e;
+        $pendientesTotal[] = $e;
     }
 }
+$pendientes = array_slice($pendientesTotal, 0, $LIMITE_POR_CORRIDA);
+$sobran = count($pendientesTotal) - count($pendientes);
 
 echo "<body style='background:#0b0e11; color:white; font-family:sans-serif; padding:20px;'>";
 echo "<h1>🔍 Verificar TODOS los equipos vs Highlightly</h1>";
 echo "<p>Total en tu base: " . count($equipos) . " equipos, en " . count(array_unique(array_column($equipos, 'liga_id'))) . " ligas.</p>";
 echo "<p>Ya verificados antes (desde caché, sin gastar API): <b style='color:#0f0;'>{$yaVerificados['ok']} encontrados</b>, <b style='color:#f44;'>{$yaVerificados['fail']} no encontrados</b>.</p>";
-echo "<p>Pendientes por verificar ahora (van a gastar cupo de la API): <b style='color:#ff0;'>" . count($pendientes) . "</b></p>";
+echo "<p>Pendientes totales sin verificar: <b style='color:#ff0;'>" . count($pendientesTotal) . "</b> — esta corrida va a revisar como máximo <b>$LIMITE_POR_CORRIDA</b> (para cuidar el cupo diario).</p>";
+if ($sobran > 0) {
+    echo "<p style='color:#888;'>Quedan $sobran pendientes para la próxima corrida (vuelve a entrar a esta página más tarde o mañana).</p>";
+}
 
 echo "<h3>Ligas detectadas en tu base de datos:</h3><ul>";
 $porLiga = [];

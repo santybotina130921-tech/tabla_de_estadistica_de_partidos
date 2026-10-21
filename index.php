@@ -95,6 +95,9 @@ if (isset($_POST['local'], $_POST['visitante'])) {
     <style>
         :root { --green: #00ff00; --red: #ff4444; --dark: #0b0e11; --card: #161a1e; --gold: #f1c40f; }
         html { color-scheme: dark; }
+        /* Fuerza fondo oscuro + letra clara en la lista desplegable nativa (celular/Windows) */
+        select option, select optgroup { background-color: #14181d; color: #ffffff; }
+        select option:checked { background-color: #0a5; color: #ffffff; }
         body { background: var(--dark); color: white; font-family: 'Segoe UI', sans-serif; margin: 0; overflow-x: hidden; }
         .container { max-width: 1200px; margin: auto; padding: 20px; text-align: center; }
         .main-card { background: var(--card); border: 1px solid #2b2f36; padding: 40px; border-radius: 40px; box-shadow: 0 0 60px rgba(0,255,0,0.15); }
@@ -114,7 +117,7 @@ if (isset($_POST['local'], $_POST['visitante'])) {
             width: 260px; margin: 0; padding: 16px 42px 16px 18px;
             background: linear-gradient(180deg, #14181d, #0a0c0f);
             border: 1px solid #2b2f36; border-radius: 16px;
-            color: #00ff00; font-size: 15px; font-weight: 700; letter-spacing: .3px;
+            color: #fff; font-size: 15px; font-weight: 700; letter-spacing: .3px;
             text-align: left; cursor: pointer; color-scheme: dark;
             box-shadow: 0 6px 18px rgba(0,0,0,.45), inset 0 1px 0 rgba(255,255,255,.03);
             transition: border-color .2s, box-shadow .2s;
