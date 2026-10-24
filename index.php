@@ -396,6 +396,8 @@ if (isset($_POST['local'], $_POST['visitante'])) {
                     </table>
                     </div>
                 </div>
+
+                <?php include 'includes/alineaciones_view.php'; ?>
             <?php endif; ?>
         </div>
     </div>
