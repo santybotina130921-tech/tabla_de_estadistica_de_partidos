@@ -397,6 +397,7 @@ if (isset($_POST['local'], $_POST['visitante'])) {
                     </div>
                 </div>
 
+                <?php include 'includes/clima_view.php'; ?>
                 <?php include 'includes/alineaciones_view.php'; ?>
             <?php endif; ?>
         </div>
