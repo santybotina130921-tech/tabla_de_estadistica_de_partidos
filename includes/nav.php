@@ -69,7 +69,7 @@
             </div>
             <a href="historial.php" class="sync-button sync-historial">📈 HISTORIAL</a>
             <a href="core/api_fetch.php" class="sync-button">🔄 SYNC EUROPA</a>
-            <a href="core/api_fetch_highlightly.php" class="sync-button" style="border-color:#f1c40f; color:#f1c40f;">🔄 SYNC LATAM</a>
+            <a href="core/Api_fetch_highlightly.php" class="sync-button" style="border-color:#f1c40f; color:#f1c40f;">🔄 SYNC LATAM</a>
         </div>
     </div>
 
