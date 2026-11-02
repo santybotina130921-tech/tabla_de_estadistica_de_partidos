@@ -10,14 +10,14 @@
  * api_fetch_highlightly.php), así que no duplica lógica ni se pasa del tiempo
  * máximo de PHP.
  *
- * Gasto de cupo por corrida: ~12 peticiones de Highlightly (de 100/día) y
- * ~9 de football-data.org (que tiene cupo aparte). Recomendado: 2 veces al día.
+ * Gasto de cupo por corrida: ~12 peticiones de Highlightly (+ hasta 5 para registrar resultados
+ * de predicciones) de las 100 diarias, y ~24 de football-data.org (cupo aparte). Recomendado: 2 veces al día.
  */
 
 // Cambia esto si tu carpeta se llama distinto:
 $BASE = 'http://localhost/tabla_de_estadistica_de_partidos/core/';
 
-$europa = ['CL', 'PL', 'PD', 'BL1', 'SA', 'FL1', 'PPL', 'DED', 'BSA'];
+$europa = ['CL', 'PL', 'PD', 'BL1', 'SA', 'FL1', 'PPL', 'DED', 'BSA', 'ELC', 'WC', 'EC'];
 $latam  = ['HL_COL', 'HL_ARG', 'HL_CHI', 'HL_URU', 'HL_PAR', 'HL_PER', 'HL_ECU', 'HL_MEX', 'HL_MLS', 'HL_SAU', 'HL_LIB', 'HL_SUD'];
 
 function llamarLocal(string $url): string
@@ -43,12 +43,26 @@ foreach ($europa as $liga) {
     $d = json_decode(llamarLocal($BASE . 'api_fetch.php?liga=' . $liga), true);
     log_linea(($d['ok'] ?? false ? 'OK   ' : 'FALLO') . " $liga: " . ($d['msg'] ?? 'respuesta inválida'));
     sleep(7); // football-data.org: máx. ~10 peticiones por minuto
+
+    $d = json_decode(llamarLocal($BASE . 'api_fetch.php?liga=' . $liga . '&tipo=goleadores'), true);
+    log_linea(($d['ok'] ?? false ? 'OK   ' : 'FALLO') . " $liga goleadores: " . ($d['msg'] ?? 'respuesta inválida'));
+    sleep(7);
 }
 
 foreach ($latam as $liga) {
     $d = json_decode(llamarLocal($BASE . 'api_fetch_highlightly.php?liga=' . $liga), true);
     log_linea(($d['ok'] ?? false ? 'OK   ' : 'FALLO') . " $liga: " . ($d['msg'] ?? 'respuesta inválida'));
     sleep(2);
+}
+
+// Registra el resultado de las predicciones cuyos partidos ya terminaron (máx. 5 peticiones de Highlightly)
+try {
+    require_once __DIR__ . '/../config/database.php';
+    require_once __DIR__ . '/predicciones.php';
+    $nuevos = resolverPendientes($conexion, getenv('HIGHLIGHTLY_API_KEY'), 5);
+    log_linea("Predicciones con resultado nuevo: $nuevos");
+} catch (Exception $e) {
+    log_linea('No se pudieron resolver predicciones: ' . $e->getMessage());
 }
 
 log_linea('--- Fin ---');

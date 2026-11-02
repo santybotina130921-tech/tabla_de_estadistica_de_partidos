@@ -1,11 +1,5 @@
 <?php
-/**
- * includes/clima_view.php
- * Tarjeta "Clima del partido". Se incluye desde index.php cuando ya hay dos
- * equipos elegidos. Si no hay partido próximo entre ellos, no muestra nada
- * (el bloque de alineaciones ya lo avisa).
- */
-require_once __DIR__ . '/../core/Clima.php'; // trae clDetallePartido(), clCoordenadas(), clPronostico(), clExtraer(), clDescribirCodigo(), clConsejos()
+require_once __DIR__ . '/../core/clima.php';
 
 $clKey = getenv('HIGHLIGHTLY_API_KEY');
 $clIdL = (int) ($realL['highlightly_id'] ?? 0);
@@ -40,27 +34,6 @@ if ($clPartido):
     }
     $clHoraLocal = (new DateTime('@' . $clPartido['inicio']))->setTimezone($clZona)->format('d/m/Y H:i');
 ?>
-<style>
-    .cl-wrap { margin-top: 40px; background: #000; border-radius: 30px; padding: 25px; border: 2px solid #1a1e23; text-align: left; }
-    .cl-wrap h2 { color: var(--gold); text-transform: uppercase; letter-spacing: 3px; font-size: 16px; margin: 0 0 14px; text-align: center; }
-    .cl-aviso { background: #0d1117; border: 1px solid #1f242b; border-radius: 16px; padding: 16px; color: #bbb; font-size: 14px; line-height: 1.5; text-align: center; }
-    .cl-aviso b { color: #fff; }
-    .cl-top { display: flex; align-items: center; justify-content: center; gap: 14px; flex-wrap: wrap; margin-bottom: 14px; }
-    .cl-icono { font-size: 56px; line-height: 1; }
-    .cl-desc { font-size: 22px; font-weight: 800; }
-    .cl-sub { color: #999; font-size: 13px; margin-top: 2px; }
-    .cl-tiles { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
-    .cl-tile { background: #0d1117; border-radius: 16px; padding: 14px 8px; text-align: center; border: 1px solid #1a1e23; }
-    .cl-tile small { display: block; color: #777; font-size: 10px; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 4px; }
-    .cl-tile b { font-size: 22px; color: var(--green); }
-    .cl-tile span { display: block; font-size: 11px; color: #888; margin-top: 3px; }
-    .cl-tips { margin: 14px 0 0; padding: 0; list-style: none; }
-    .cl-tips li { background: #0d1117; border-left: 4px solid var(--gold); border-radius: 10px; padding: 9px 12px; margin-bottom: 6px; font-size: 13px; color: #ddd; }
-    .cl-credito { margin-top: 10px; font-size: 11px; color: #555; text-align: center; }
-    .cl-credito a { color: #777; }
-    @media (max-width: 768px) { .cl-tiles { grid-template-columns: repeat(2, 1fr); } }
-</style>
-
 <div class="cl-wrap">
     <h2>🌦️ Clima del partido</h2>
     <?php

@@ -3,7 +3,7 @@ require_once __DIR__ . '/../config/database.php';
 
 $apiToken = getenv('FOOTBALL_DATA_API_TOKEN');
 $baseUrl  = "https://api.football-data.org/v4/competitions/";
-$competencias = ['CL', 'PL', 'PD', 'BL1', 'SA', 'FL1', 'PPL', 'DED', 'BSA'];
+$competencias = ['CL', 'PL', 'PD', 'BL1', 'SA', 'FL1', 'PPL', 'DED', 'BSA', 'ELC', 'WC', 'EC'];
 
 function pedirStandings(string $url, string $token): array
 {
@@ -37,7 +37,8 @@ if (isset($_GET['liga'])) {
         exit;
     }
 
-    $r = pedirStandings($baseUrl . "$code/standings", $apiToken);
+    $esGoleadores = (($_GET['tipo'] ?? '') === 'goleadores');
+    $r = pedirStandings($baseUrl . "$code/" . ($esGoleadores ? 'scorers?limit=15' : 'standings'), $apiToken);
 
     if ($r['error']) {
         echo json_encode(['ok' => false, 'msg' => "error de conexión → {$r['error']}"]);
@@ -56,7 +57,47 @@ if (isset($_GET['liga'])) {
         exit;
     }
 
-    $data = json_decode($r['body'], true);
+    $data = json_decode((string) $r['body'], true);
+
+    if ($esGoleadores) {
+        $lista = $data['scorers'] ?? [];
+        if (!$lista) {
+            echo json_encode(['ok' => false, 'msg' => 'todavía no hay goleadores registrados.']);
+            exit;
+        }
+        try {
+            $conexion->beginTransaction();
+            $conexion->prepare("DELETE FROM goleadores WHERE liga_id = :l")->execute([':l' => $code]);
+            $ins = $conexion->prepare(
+                "INSERT INTO goleadores (liga_id, posicion, jugador, equipo, goles, asistencias, penales, partidos)
+                 VALUES (:l, :pos, :j, :e, :g, :a, :p, :pj)
+                 ON CONFLICT (liga_id, jugador, equipo) DO NOTHING"
+            );
+            foreach ($lista as $i => $sc) {
+                $ins->execute([
+                    ':l'   => $code,
+                    ':pos' => $i + 1,
+                    ':j'   => $sc['player']['name'] ?? '?',
+                    ':e'   => $sc['team']['name'] ?? '?',
+                    ':g'   => (int) ($sc['goals'] ?? $sc['numberOfGoals'] ?? 0),
+                    ':a'   => (int) ($sc['assists'] ?? 0),
+                    ':p'   => (int) ($sc['penalties'] ?? 0),
+                    ':pj'  => (int) ($sc['playedMatches'] ?? 0),
+                ]);
+            }
+            $conexion->commit();
+        } catch (Exception $e) {
+            if ($conexion->inTransaction()) {
+                $conexion->rollBack();
+            }
+            error_log('Goleadores: ' . $e->getMessage());
+            echo json_encode(['ok' => false, 'msg' => 'no pude guardar los goleadores (¿corriste la migración SQL?).']);
+            exit;
+        }
+        echo json_encode(['ok' => true, 'msg' => 'goleadores actualizados (' . count($lista) . ').']);
+        exit;
+    }
+
     $sql = "INSERT INTO estadisticas_reales
             (equipo_nombre, liga_id, logo_url, posicion_tabla, partidos_jugados, goles_favor, goles_contra,
              tarjetas_rojas, penaltis_anotados, corners_total, tarjetas_amarillas, atajadas_portero, posesion_media,
@@ -76,6 +117,9 @@ if (isset($_GET['liga'])) {
     $stmt = $conexion->prepare($sql);
 
     foreach ($data['standings'] ?? [] as $grupo) {
+        if (($grupo['type'] ?? 'TOTAL') !== 'TOTAL') {
+            continue;
+        }
         foreach ($grupo['table'] as $pos) {
             $stmt->execute([
                 ':nom' => $pos['team']['name'], ':liga' => $code, ':logo' => $pos['team']['crest'],
@@ -124,7 +168,17 @@ async function sincronizar() {
         } catch (e) {
             log.lastChild.innerHTML = '⚠️ ' + liga + ': error de red en el navegador.';
         }
-        // pausa entre ligas para respetar el límite de peticiones de la API gratis
+        // pausa entre peticiones para respetar el límite de la API gratis (10 por minuto)
+        await new Promise(r => setTimeout(r, 6500));
+
+        linea(`⏳ ${liga} goleadores...`);
+        try {
+            const res2 = await fetch(`api_fetch.php?liga=${liga}&tipo=goleadores`);
+            const data2 = await res2.json();
+            log.lastChild.innerHTML = (data2.ok ? '✅ ' : '⚠️ ') + liga + ' goleadores: ' + data2.msg;
+        } catch (e) {
+            log.lastChild.innerHTML = '⚠️ ' + liga + ' goleadores: error de red en el navegador.';
+        }
         await new Promise(r => setTimeout(r, 6500));
     }
     linea('<br><b style="color:#00ff00;">Listo.</b>');

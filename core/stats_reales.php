@@ -97,19 +97,25 @@ function hlResolverEquipo(string $equipoNombre, string $apiKey): ?array
         $r = hlLlamar("https://soccer.highlightly.net/teams?name=" . urlencode($aliasManual), $apiKey);
         $d = json_decode($r['body'], true);
         if (!empty($d['data'][0])) {
-            return $d['data'][0] + ['candidato_usado' => $aliasManual];
+            return $d['data'][0] + ['candidato_usado' => $aliasManual, 'ultimo_http' => $r['http']];
         }
     }
 
+    $ultimoHttp = null;
+    $ultimoBody = null;
     foreach (hlNombresCandidatos($equipoNombre) as $candidato) {
         $r = hlLlamar("https://soccer.highlightly.net/teams?name=" . urlencode($candidato), $apiKey);
+        $ultimoHttp = $r['http'];
+        $ultimoBody = $r['body'];
         $d = json_decode($r['body'], true);
         if (!empty($d['data'][0])) {
-            return $d['data'][0] + ['candidato_usado' => $candidato];
+            return $d['data'][0] + ['candidato_usado' => $candidato, 'ultimo_http' => $r['http']];
         }
+        usleep(150000); // pequeña pausa entre intentos para no disparar un límite de ráfaga
     }
 
-    return null;
+    // No se encontró con ninguna variante: devolvemos el diagnóstico del último intento
+    return ['id' => null, 'ultimo_http' => $ultimoHttp, 'ultimo_body' => $ultimoBody ? substr($ultimoBody, 0, 150) : null];
 }
 
 function obtenerStatsReales(PDO $conexion, ?string $apiKey, string $equipoNombre, int $diasCache = 3): ?array
@@ -151,7 +157,22 @@ function obtenerStatsReales(PDO $conexion, ?string $apiKey, string $equipoNombre
     }
 
     // 4. Detalle + estadísticas de cada partido
-    $corners = $amarillas = $rojas = $atajadas = $posesion = $xg = $penales = [];
+    $corners = $amarillas = $rojas = $atajadas = $posesion = $xg = $penales = $remates = $arco = [];
+
+    // Forma reciente (V/E/D, del partido más viejo al más nuevo), calculada con los
+    // resultados que ya trajimos: no gasta peticiones extra.
+    $forma = '';
+    foreach (array_reverse($jugados) as $m) {
+        $descripcion = (string) ($m['state']['description'] ?? '');
+        $terminado = stripos($descripcion, 'finish') !== false || stripos($descripcion, 'full time') !== false;
+        if (!$terminado || !preg_match('/(\d+)\s*-\s*(\d+)/', (string) ($m['state']['score']['current'] ?? ''), $g)) {
+            continue;
+        }
+        $esLocal = ((int) ($m['homeTeam']['id'] ?? 0)) === (int) $highlightlyId;
+        $propios = $esLocal ? (int) $g[1] : (int) $g[2];
+        $rival   = $esLocal ? (int) $g[2] : (int) $g[1];
+        $forma  .= ($propios > $rival) ? 'V' : (($propios === $rival) ? 'E' : 'D');
+    }
 
     foreach ($jugados as $m) {
         $r = hlLlamar("https://soccer.highlightly.net/matches/{$m['id']}", $apiKey);
@@ -169,6 +190,12 @@ function obtenerStatsReales(PDO $conexion, ?string $apiKey, string $equipoNombre
             if (($v = hlExtraerStat($st, 'Goalkeeper saves')) !== null) $atajadas[] = $v;
             if (($v = hlExtraerStat($st, 'Possession')) !== null) $posesion[] = $v * 100;
             if (($v = hlExtraerStat($st, 'Expected Goals')) !== null) $xg[] = $v;
+
+            $alArco = hlExtraerStat($st, 'Shots on target');
+            if ($alArco !== null) {
+                $arco[] = $alArco;
+                $remates[] = $alArco + (hlExtraerStat($st, 'Shots off target') ?? 0) + (hlExtraerStat($st, 'Blocked shots') ?? 0);
+            }
         }
 
         // Penales: se cuentan a partir de los eventos del partido (no viene como stat aparte)
@@ -194,26 +221,55 @@ function obtenerStatsReales(PDO $conexion, ?string $apiKey, string $equipoNombre
         'posesion_promedio'           => $prom($posesion),
         'xg_promedio'                 => $prom($xg),
         'penales_promedio'            => $prom($penales),
+        'remates_promedio'            => $prom($remates),
+        'arco_promedio'               => $prom($arco),
+        'forma'                       => $forma !== '' ? $forma : null,
         'actualizado_en'              => date('c'),
     ];
 
     // 5. Guardar en caché
     $sql = "INSERT INTO equipo_stats_reales
             (equipo_nombre, highlightly_id, partidos_analizados, corners_promedio, tarjetas_amarillas_promedio,
-             tarjetas_rojas_promedio, atajadas_promedio, posesion_promedio, xg_promedio, penales_promedio, actualizado_en)
-            VALUES (:nom, :hid, :pa, :co, :am, :ro, :at, :po, :xg, :pn, now())
+             tarjetas_rojas_promedio, atajadas_promedio, posesion_promedio, xg_promedio, penales_promedio,
+             remates_promedio, arco_promedio, forma, actualizado_en)
+            VALUES (:nom, :hid, :pa, :co, :am, :ro, :at, :po, :xg, :pn, :rm, :ar, :fo, now())
             ON CONFLICT (equipo_nombre) DO UPDATE SET
                 highlightly_id = EXCLUDED.highlightly_id, partidos_analizados = EXCLUDED.partidos_analizados,
                 corners_promedio = EXCLUDED.corners_promedio, tarjetas_amarillas_promedio = EXCLUDED.tarjetas_amarillas_promedio,
                 tarjetas_rojas_promedio = EXCLUDED.tarjetas_rojas_promedio, atajadas_promedio = EXCLUDED.atajadas_promedio,
                 posesion_promedio = EXCLUDED.posesion_promedio, xg_promedio = EXCLUDED.xg_promedio,
-                penales_promedio = EXCLUDED.penales_promedio, actualizado_en = now()";
-    $conexion->prepare($sql)->execute([
+                penales_promedio = EXCLUDED.penales_promedio, remates_promedio = EXCLUDED.remates_promedio,
+                arco_promedio = EXCLUDED.arco_promedio, forma = EXCLUDED.forma, actualizado_en = now()";
+    $params = [
         ':nom' => $equipoNombre, ':hid' => $highlightlyId, ':pa' => $resultado['partidos_analizados'],
         ':co' => $resultado['corners_promedio'], ':am' => $resultado['tarjetas_amarillas_promedio'],
         ':ro' => $resultado['tarjetas_rojas_promedio'], ':at' => $resultado['atajadas_promedio'],
         ':po' => $resultado['posesion_promedio'], ':xg' => $resultado['xg_promedio'], ':pn' => $resultado['penales_promedio'],
-    ]);
+        ':rm' => $resultado['remates_promedio'], ':ar' => $resultado['arco_promedio'], ':fo' => $resultado['forma'],
+    ];
+
+    try {
+        $conexion->prepare($sql)->execute($params);
+    } catch (PDOException $e) {
+        // Si todavía no corriste migracion_extras.sql faltan columnas: guardamos sin ellas para no romper la página.
+        error_log('Caché de estadísticas sin columnas nuevas (corre migracion_extras.sql): ' . $e->getMessage());
+        $sqlBasico = "INSERT INTO equipo_stats_reales
+                (equipo_nombre, highlightly_id, partidos_analizados, corners_promedio, tarjetas_amarillas_promedio,
+                 tarjetas_rojas_promedio, atajadas_promedio, posesion_promedio, xg_promedio, penales_promedio, actualizado_en)
+                VALUES (:nom, :hid, :pa, :co, :am, :ro, :at, :po, :xg, :pn, now())
+                ON CONFLICT (equipo_nombre) DO UPDATE SET
+                    highlightly_id = EXCLUDED.highlightly_id, partidos_analizados = EXCLUDED.partidos_analizados,
+                    corners_promedio = EXCLUDED.corners_promedio, tarjetas_amarillas_promedio = EXCLUDED.tarjetas_amarillas_promedio,
+                    tarjetas_rojas_promedio = EXCLUDED.tarjetas_rojas_promedio, atajadas_promedio = EXCLUDED.atajadas_promedio,
+                    posesion_promedio = EXCLUDED.posesion_promedio, xg_promedio = EXCLUDED.xg_promedio,
+                    penales_promedio = EXCLUDED.penales_promedio, actualizado_en = now()";
+        unset($params[':rm'], $params[':ar'], $params[':fo']);
+        try {
+            $conexion->prepare($sqlBasico)->execute($params);
+        } catch (PDOException $e2) {
+            error_log('No se pudo guardar la caché de estadísticas: ' . $e2->getMessage());
+        }
+    }
 
     return $resultado;
 }

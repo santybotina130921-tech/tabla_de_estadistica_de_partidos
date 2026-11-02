@@ -48,38 +48,33 @@ if (isset($_POST['local'], $_POST['visitante'])) {
             $V['datos_reales']        = true;
         }
 
-        // --- 1. LÓGICA DE FUERZA ---
-        $fuerzaL = ($L['goles_favor'] + $V['goles_contra']) / 2;
-        $fuerzaV = ($V['goles_favor'] + $L['goles_contra']) / 2;
-        $mediaL = $L['goles_favor'] / max($L['partidos_jugados'], 1);
-        $mediaV = $V['goles_favor'] / max($V['partidos_jugados'], 1);
+        // --- 1. MOTOR DE POISSON (reemplaza las fórmulas caseras) ---
+        require_once __DIR__ . '/core/poisson.php';
+        $mediaLiga = mediaLigaDe($equipos, array_values(array_unique([$L['liga_id'], $V['liga_id']])));
+        $modelo = modeloPoisson($L, $V, $mediaLiga);
 
-        $dif = abs($fuerzaL - $fuerzaV);
+        $pL = $modelo['local'];
+        $pE = $modelo['empate'];
+        $pV = $modelo['visitante'];
+        $marcadorL = $modelo['marcador'][0];
+        $marcadorV = $modelo['marcador'][1];
+        $mediaL = $modelo['lambda_local'];      // goles esperados del local
+        $mediaV = $modelo['lambda_visitante'];  // goles esperados del visitante
+        $promG  = $mediaL + $mediaV;            // goles esperados en total
 
-        // --- 2. EL ARREGLO DEL EMPATE (Lógica Pro) ---
-        $pE = round(28 - ($dif * 1.5));
-        if ($pE < 22) $pE = 23;
-
-        $resto = 100 - $pE;
-        $pL = round($resto * ($fuerzaL / ($fuerzaL + $fuerzaV + 0.1)));
-        $pV = 100 - $pL - $pE;
-
-        // --- 3. DATOS PARA MERCADOS ---
-        $promG = ($L['goles_favor'] + $V['goles_favor']) / max(($L['partidos_jugados'] + $V['partidos_jugados']), 1);
-        $corners_avg = ($L['corners_total'] + $V['corners_total']) / 20;
-
-        // --- 4. H2H REAL ---
-        $liga_h2h = ($liga_actual === 'TODAS') ? $L['liga_id'] : $liga_actual;
-        $apiToken = getenv('FOOTBALL_DATA_API_TOKEN');
-        $urlH2H = "https://api.football-data.org/v4/competitions/$liga_h2h/matches?status=FINISHED";
-        $opts = ["http" => ["method" => "GET", "header" => "X-Auth-Token: $apiToken\r\n"]];
-        $res = @file_get_contents($urlH2H, false, stream_context_create($opts));
-        if ($res) {
-            $data = json_decode($res, true);
-            foreach ($data['matches'] as $m) {
-                if (($m['homeTeam']['name'] == $L['equipo_nombre'] && $m['awayTeam']['name'] == $V['equipo_nombre']) ||
-                    ($m['homeTeam']['name'] == $V['equipo_nombre'] && $m['awayTeam']['name'] == $L['equipo_nombre'])) {
-                    $h2h_real[] = $m;
+        // --- 2. GUARDAR LA PREDICCIÓN (solo si hay un partido real próximo entre los dos) ---
+        // Sirve para el historial de aciertos: se guarda ANTES del partido y luego se compara con el resultado.
+        require_once __DIR__ . '/core/alineaciones.php';
+        require_once __DIR__ . '/core/predicciones.php';
+        $idHL_L = (int) ($realL['highlightly_id'] ?? 0);
+        $idHL_V = (int) ($realV['highlightly_id'] ?? 0);
+        if ($idHL_L && $idHL_V) {
+            $proximoReal = alProximoPartido($apiKeyHL, $idHL_L, $idHL_V);
+            if ($proximoReal) {
+                try {
+                    guardarPrediccionReal($conexion, $proximoReal, $L, $V, $idHL_L, $equipos);
+                } catch (Exception $e) {
+                    error_log('No se pudo guardar la predicción: ' . $e->getMessage());
                 }
             }
         }
@@ -92,6 +87,7 @@ if (isset($_POST['local'], $_POST['visitante'])) {
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>SANTIAGO AI - PREDICTOR ELITE</title>
+    <link rel="stylesheet" href="assets/css/extras.css">
     <style>
         :root { --green: #00ff00; --red: #ff4444; --dark: #0b0e11; --card: #161a1e; --gold: #f1c40f; }
         html { color-scheme: dark; }
@@ -211,8 +207,8 @@ if (isset($_POST['local'], $_POST['visitante'])) {
                     <?php if($L && $V): ?>
                     <div class="score-center">
                         <div class="score-label">PREDICCIÓN</div>
-                        <div class="score-val"><?= round($mediaL) ?>-<?= round($mediaV) ?></div>
-                        <div class="score-label">MARCADOR EXACTO</div>
+                        <div class="score-val"><?= $marcadorL ?>-<?= $marcadorV ?></div>
+                        <div class="score-label">MARCADOR MÁS PROBABLE</div>
                     </div>
                     <?php else: ?>
                     <div style="font-size: 60px; font-weight: 900; color: #222;">VS</div>
@@ -273,6 +269,7 @@ if (isset($_POST['local'], $_POST['visitante'])) {
                     </div>
                     <p class="standings-nota">El borde verde/rojo marca las primeras y últimas posiciones de la tabla (no zonas oficiales de clasificación/descenso).</p>
                 </div>
+                <?php include 'includes/goleadores_view.php'; ?>
             <?php endif; ?>
 
             <?php if($L && $V): ?>
@@ -286,13 +283,22 @@ if (isset($_POST['local'], $_POST['visitante'])) {
                     <div class="bet-box">
                         <h3 style="color:var(--green); margin-top:0;">⚽ MERCADO DE GOLES</h3>
                         <?php
-                            $p05 = min(99, round($promG * 38));
-                            $p15 = min(96, round($promG * 32));
-                            $p25 = min(89, round($promG * 25));
-                            $m35 = 100 - min(35, round($promG * 8));
-                            $m45 = 100 - min(15, round($promG * 4));
-                            $ambos = ($mediaL >= 0.7 && $mediaV >= 0.7) ? 'SÍ' : 'NO';
-                            $penal = ($L['penaltis_anotados'] + $V['penaltis_anotados'] > 0) ? 'SÍ' : 'NO';
+                            $p05 = $modelo['over'][0] ?? 0;
+                            $p15 = $modelo['over'][1] ?? 0;
+                            $p25 = $modelo['over'][2] ?? 0;
+                            $m35 = 100 - ($modelo['over'][3] ?? 0);
+                            $m45 = 100 - ($modelo['over'][4] ?? 0);
+                            $ambos = $modelo['btts'];
+
+                            // Penalti: probabilidad de que haya al menos uno, con los penales reales por partido
+                            // (se acerca a un promedio normal de 0.15 por equipo cuando hay pocos partidos).
+                            $penEsp = 0;
+                            foreach ([$realL, $realV] as $rr) {
+                                $n = (int) ($rr['partidos_analizados'] ?? 0);
+                                $avg = (float) ($rr['penales_promedio'] ?? 0);
+                                $penEsp += ($n * $avg + 5 * 0.15) / ($n + 5);
+                            }
+                            $penal = (!empty($L['datos_reales']) && !empty($V['datos_reales'])) ? round((1 - exp(-$penEsp)) * 100) . '%' : '—';
                         ?>
                         <div class="bet-row"><span>+0.5</span><b><?= $p05 ?>%</b></div>
                         <div class="bet-row"><span>+1.5</span><b><?= $p15 ?>%</b></div>
@@ -300,7 +306,7 @@ if (isset($_POST['local'], $_POST['visitante'])) {
                         <div class="bet-row"><span>-3.5</span><b><?= $m35 ?>%</b></div>
                         <div class="bet-row"><span>-4.5</span><b><?= $m45 ?>%</b></div>
                         <div class="bet-row" style="border-top:1px solid #333; margin-top:5px; padding-top:5px;">
-                            <span>Ambos Marcan</span><b><?= $ambos ?></b>
+                            <span>Ambos Marcan</span><b><?= $ambos ?>%</b>
                         </div>
                         <div class="bet-row"><span>Penalti</span><b><?= $penal ?></b></div>
                     </div>
@@ -308,36 +314,35 @@ if (isset($_POST['local'], $_POST['visitante'])) {
                     <div class="bet-box" style="border-left-color:var(--gold);">
                         <h3 style="color:var(--gold); margin-top:0;">⚔️ ACCIÓN Y CÓRNERS</h3>
                         <?php
-                            $pjL = max($L['partidos_jugados'], 1);
-                            $pjV = max($V['partidos_jugados'], 1);
-                            $cTotalProm = ($L['corners_total'] + $V['corners_total']) / ($pjL + $pjV);
-                            if($cTotalProm < 7.5) { $cTotalProm = 8.5; }
-                            $p65 = min(99, round($cTotalProm * 12.5));
-                            $p75 = min(96, round($cTotalProm * 11));
-                            $p85 = min(88, round($cTotalProm * 9.5));
-                            $p95 = min(78, round($cTotalProm * 8));
-                            $remL = round(($L['goles_favor'] / $pjL) * 6.5 + 4);
-                            $remV = round(($V['goles_favor'] / $pjV) * 6.5 + 4);
-                            $arcoL = round($remL * 0.35);
-                            $arcoV = round($remV * 0.35);
-                            $totalArco = $arcoL + $arcoV;
+                            $pjL = max((int) $L['partidos_jugados'], 1);
+                            $pjV = max((int) $V['partidos_jugados'], 1);
+                            $hayReales = !empty($L['datos_reales']) && !empty($V['datos_reales']);
+                            $fmt = fn($v) => ($v === null || $v === '') ? '—' : round((float) $v, 1);
+                            if ($hayReales) {
+                                $cEsp = (float) $realL['corners_promedio'] + (float) $realV['corners_promedio'];
+                                $p65 = poissonOverLinea($cEsp, 6.5);
+                                $p75 = poissonOverLinea($cEsp, 7.5);
+                                $p85 = poissonOverLinea($cEsp, 8.5);
+                                $p95 = poissonOverLinea($cEsp, 9.5);
+                            }
                         ?>
-                        <div class="bet-row"><span>🚩 +6.5</span><b><?= $p65 ?>%</b></div>
-                        <div class="bet-row"><span>🚩 +7.5</span><b><?= $p75 ?>%</b></div>
-                        <div class="bet-row"><span>🚩 +8.5</span><b><?= $p85 ?>%</b></div>
-                        <div class="bet-row"><span>🚩 +9.5</span><b><?= $p95 ?>%</b></div>
-                        <div class="bet-row"><span>🔥 Remates</span><b><?= $remL ?>/<?= $remV ?></b></div>
-                        <div class="bet-row"><span>🎯 Arco</span><b><?= $arcoL ?>/<?= $arcoV ?></b></div>
+                        <?php if ($hayReales): ?>
+                            <div class="bet-row"><span>🚩 Córners esperados</span><b><?= round($cEsp, 1) ?></b></div>
+                            <div class="bet-row"><span>🚩 +6.5</span><b><?= $p65 ?>%</b></div>
+                            <div class="bet-row"><span>🚩 +7.5</span><b><?= $p75 ?>%</b></div>
+                            <div class="bet-row"><span>🚩 +8.5</span><b><?= $p85 ?>%</b></div>
+                            <div class="bet-row"><span>🚩 +9.5</span><b><?= $p95 ?>%</b></div>
+                            <div class="bet-row"><span>🔥 Remates (prom.)</span><b><?= $fmt($realL['remates_promedio'] ?? null) ?>/<?= $fmt($realV['remates_promedio'] ?? null) ?></b></div>
+                            <div class="bet-row"><span>🎯 Al arco (prom.)</span><b><?= $fmt($realL['arco_promedio'] ?? null) ?>/<?= $fmt($realV['arco_promedio'] ?? null) ?></b></div>
+                        <?php else: ?>
+                            <div class="bet-row"><span>🚩 Córners</span><b class="bet-nodata">sin datos reales aún</b></div>
+                            <div class="bet-row"><span>🔥 Remates / 🎯 Arco</span><b class="bet-nodata">sin datos reales aún</b></div>
+                        <?php endif; ?>
                         <div class="bet-row"><span>DOBLE</span><b style="color:var(--gold)"><?= ($pL+$pE) ?>%|<?= ($pL+$pV) ?>%|<?= ($pV+$pE) ?>%</b></div>
                     </div>
                 </div>
 
-                <div class="h2h-container" style="margin-top:30px; background:#000; padding:20px; border-radius:20px;">
-                    <h3 style="text-align:left; color:var(--green);">⚔️ ÚLTIMO RESULTADO</h3>
-                    <?php if($h2h_real): $m = $h2h_real[0]; ?>
-                        <div style="font-size:30px; font-weight:900;"><?= $m['homeTeam']['name'] ?> <span style="color:var(--gold)"><?= $m['score']['fullTime']['home'] ?>-<?= $m['score']['fullTime']['away'] ?></span> <?= $m['awayTeam']['name'] ?></div>
-                    <?php else: echo "Sin previos."; endif; ?>
-                </div>
+                <?php include 'includes/h2h_view.php'; ?>
 
                 <div style="margin-top: 50px; background: #000; border-radius: 40px; padding: 25px; border: 2px solid #1a1e23;">
                     <h2 style="color: var(--gold); text-transform: uppercase; letter-spacing: 4px; font-size: 18px;">📊 ANALÍTICA

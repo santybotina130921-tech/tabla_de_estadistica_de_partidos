@@ -1,0 +1,574 @@
+:root {
+    --green: #00ff00;
+    --red: #ff4444;
+    --dark: #0b0e11;
+    --card: #161a1e;
+    --gold: #f1c40f;
+}
+
+.al-wrap,
+.cl-wrap,
+.h2h-wrap,
+.gol-wrap,
+.hist-wrap {
+    margin-top: 40px;
+    background: #000;
+    border-radius: 30px;
+    padding: 25px;
+    border: 2px solid #1a1e23;
+    text-align: left;
+}
+
+.al-wrap h2,
+.cl-wrap h2,
+.h2h-wrap h2,
+.gol-wrap h2,
+.hist-wrap h2 {
+    color: var(--gold);
+    text-transform: uppercase;
+    letter-spacing: 3px;
+    font-size: 16px;
+    margin: 0 0 14px;
+    text-align: center;
+}
+
+.al-aviso,
+.cl-aviso,
+.h2h-aviso {
+    background: #0d1117;
+    border: 1px solid #1f242b;
+    border-radius: 16px;
+    padding: 16px;
+    color: #bbb;
+    font-size: 14px;
+    line-height: 1.5;
+    text-align: center;
+}
+
+.al-aviso b,
+.cl-aviso b {
+    color: #fff;
+}
+
+.al-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+    margin-top: 16px;
+}
+
+.al-team {
+    background: #0d1117;
+    border-radius: 20px;
+    padding: 14px;
+    border-top: 4px solid var(--green);
+}
+
+.al-team.es-visitante {
+    border-top-color: var(--red);
+}
+
+.al-head {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 10px;
+}
+
+.al-head img {
+    width: 28px;
+    height: 28px;
+    object-fit: contain;
+}
+
+.al-form {
+    margin-left: auto;
+    background: #1a1e23;
+    color: var(--gold);
+    font-weight: 800;
+    padding: 3px 10px;
+    border-radius: 20px;
+    font-size: 12px;
+}
+
+.al-pitch {
+    display: flex;
+    flex-direction: column;
+    justify-content: space-around;
+    gap: 8px;
+    min-height: 380px;
+    padding: 14px 6px;
+    border-radius: 14px;
+    border: 2px solid rgba(255, 255, 255, 0.25);
+    background: repeating-linear-gradient(
+        0deg,
+        #0b5d1e 0 38px,
+        #0e6b24 38px 76px
+    );
+}
+
+.al-row {
+    display: flex;
+    justify-content: space-around;
+    align-items: flex-start;
+}
+
+.al-player {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    width: 62px;
+}
+
+.al-num {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    background: #fff;
+    color: #000;
+    font-weight: 900;
+    font-size: 13px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: 3px solid var(--green);
+}
+
+.es-visitante .al-num {
+    border-color: var(--red);
+}
+
+.al-name {
+    margin-top: 3px;
+    font-size: 10px;
+    font-weight: 700;
+    color: #fff;
+    text-shadow: 0 1px 2px #000;
+    max-width: 62px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.al-bench h4 {
+    margin: 14px 0 6px;
+    font-size: 13px;
+    color: #aaa;
+}
+
+.al-grupo {
+    margin-bottom: 6px;
+}
+
+.al-grupo small {
+    display: block;
+    color: #666;
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    margin-bottom: 3px;
+}
+
+.al-chip {
+    display: inline-block;
+    background: #1a1e23;
+    color: #ddd;
+    font-size: 11px;
+    padding: 3px 8px;
+    border-radius: 12px;
+    margin: 0 4px 4px 0;
+}
+
+.al-debug,
+.cl-credito,
+.h2h-debug {
+    margin-top: 10px;
+    font-size: 11px;
+    color: #555;
+    text-align: center;
+    word-break: break-all;
+}
+
+.cl-credito a {
+    color: #777;
+}
+
+.cl-top {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 14px;
+    flex-wrap: wrap;
+    margin-bottom: 14px;
+}
+
+.cl-icono {
+    font-size: 56px;
+    line-height: 1;
+}
+
+.cl-desc {
+    font-size: 22px;
+    font-weight: 800;
+}
+
+.cl-sub {
+    color: #999;
+    font-size: 13px;
+    margin-top: 2px;
+}
+
+.cl-tiles {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 10px;
+}
+
+.cl-tile {
+    background: #0d1117;
+    border-radius: 16px;
+    padding: 14px 8px;
+    text-align: center;
+    border: 1px solid #1a1e23;
+}
+
+.cl-tile small {
+    display: block;
+    color: #777;
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    margin-bottom: 4px;
+}
+
+.cl-tile b {
+    font-size: 22px;
+    color: var(--green);
+}
+
+.cl-tile span {
+    display: block;
+    font-size: 11px;
+    color: #888;
+    margin-top: 3px;
+}
+
+.cl-tips {
+    margin: 14px 0 0;
+    padding: 0;
+    list-style: none;
+}
+
+.cl-tips li {
+    background: #0d1117;
+    border-left: 4px solid var(--gold);
+    border-radius: 10px;
+    padding: 9px 12px;
+    margin-bottom: 6px;
+    font-size: 13px;
+    color: #ddd;
+}
+
+.h2h-forma {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+    margin-bottom: 14px;
+}
+
+.h2h-forma > div {
+    background: #0d1117;
+    border-radius: 16px;
+    padding: 12px;
+    text-align: center;
+    border-top: 3px solid var(--green);
+}
+
+.h2h-forma > div.vis {
+    border-top-color: var(--red);
+}
+
+.h2h-forma small {
+    display: block;
+    color: #aaa;
+    font-size: 12px;
+    margin-bottom: 6px;
+    font-weight: 700;
+}
+
+.forma-chip {
+    display: inline-block;
+    width: 26px;
+    height: 26px;
+    line-height: 26px;
+    border-radius: 50%;
+    font-size: 12px;
+    font-weight: 900;
+    margin: 0 2px;
+    color: #000;
+}
+
+.f-v {
+    background: var(--green);
+}
+
+.f-e {
+    background: #888;
+    color: #fff;
+}
+
+.f-d {
+    background: var(--red);
+    color: #fff;
+}
+
+.h2h-sin {
+    color: #666;
+    font-size: 12px;
+}
+
+.h2h-resumen {
+    background: #0d1117;
+    border-radius: 16px;
+    padding: 12px;
+    text-align: center;
+    color: #ddd;
+    font-size: 14px;
+    margin-bottom: 10px;
+}
+
+.h2h-resumen b {
+    color: var(--gold);
+}
+
+.h2h-fila {
+    display: flex;
+    justify-content: space-between;
+    gap: 10px;
+    padding: 9px 4px;
+    border-bottom: 1px solid #14181d;
+    font-size: 14px;
+}
+
+.h2h-fila .fecha {
+    color: #777;
+    font-size: 12px;
+    min-width: 78px;
+}
+
+.h2h-fila .cruce {
+    flex: 1;
+    text-align: center;
+    font-weight: 700;
+}
+
+.h2h-fila .cruce span {
+    color: var(--gold);
+    margin: 0 6px;
+}
+
+.h2h-fila .liga {
+    color: #666;
+    font-size: 11px;
+    max-width: 130px;
+    text-align: right;
+}
+
+.gol-scroll {
+    overflow-x: auto;
+}
+
+table.goleadores {
+    width: 100%;
+    border-collapse: collapse;
+    min-width: 440px;
+    font-size: 13px;
+}
+
+table.goleadores th {
+    color: #848e9c;
+    font-size: 10px;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    padding: 8px;
+    border-bottom: 1px solid #222;
+    text-align: center;
+}
+
+table.goleadores td {
+    padding: 8px;
+    text-align: center;
+    border-bottom: 1px solid #14181d;
+    font-variant-numeric: tabular-nums;
+}
+
+table.goleadores th.izq,
+table.goleadores td.izq {
+    text-align: left;
+}
+
+table.goleadores td.goles {
+    font-weight: 900;
+    color: var(--green);
+    font-size: 15px;
+}
+
+table.goleadores td.jugador {
+    font-weight: 700;
+}
+
+table.goleadores td.equipo {
+    color: #999;
+}
+
+.pagina-simple {
+    background: var(--dark);
+    color: #fff;
+    font-family: 'Segoe UI', sans-serif;
+    margin: 0;
+}
+
+.pagina-simple .contenedor {
+    max-width: 1100px;
+    margin: auto;
+    padding: 20px;
+}
+
+.hist-titulo {
+    text-align: center;
+    font-size: 24px;
+    margin: 10px 0 20px;
+}
+
+.hist-titulo span {
+    color: var(--green);
+}
+
+.hist-cifras {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 10px;
+    margin-bottom: 14px;
+}
+
+.hist-cifra {
+    background: #0d1117;
+    border: 1px solid #1a1e23;
+    border-radius: 16px;
+    padding: 14px 8px;
+    text-align: center;
+}
+
+.hist-cifra small {
+    display: block;
+    color: #777;
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    margin-bottom: 4px;
+}
+
+.hist-cifra b {
+    font-size: 24px;
+    color: var(--green);
+}
+
+.hist-cifra span {
+    display: block;
+    color: #888;
+    font-size: 11px;
+    margin-top: 3px;
+}
+
+.hist-nota {
+    background: #0d1117;
+    border-left: 4px solid var(--gold);
+    border-radius: 10px;
+    padding: 10px 14px;
+    color: #ccc;
+    font-size: 13px;
+    line-height: 1.5;
+    margin-bottom: 14px;
+}
+
+.hist-scroll {
+    overflow-x: auto;
+}
+
+table.historial {
+    width: 100%;
+    border-collapse: collapse;
+    min-width: 640px;
+    font-size: 13px;
+}
+
+table.historial th {
+    color: #848e9c;
+    font-size: 10px;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    padding: 8px;
+    border-bottom: 1px solid #222;
+    text-align: left;
+}
+
+table.historial td {
+    padding: 9px 8px;
+    border-bottom: 1px solid #14181d;
+}
+
+table.historial .ok {
+    color: var(--green);
+    font-weight: 800;
+}
+
+table.historial .mal {
+    color: var(--red);
+    font-weight: 800;
+}
+
+table.historial .pendiente {
+    color: #888;
+}
+
+.hist-vacio {
+    text-align: center;
+    color: #888;
+    padding: 20px;
+}
+
+.bet-nodata {
+    color: #888;
+}
+
+.sync-button.sync-historial {
+    border-color: #4da3ff;
+    color: #4da3ff;
+}
+
+.sync-button.sync-historial:hover {
+    background: #4da3ff;
+    color: #000;
+}
+
+@media (max-width: 768px) {
+    .al-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .cl-tiles {
+        grid-template-columns: repeat(2, 1fr);
+    }
+
+    .h2h-forma {
+        grid-template-columns: 1fr;
+    }
+
+    .h2h-fila .liga {
+        display: none;
+    }
+
+    .hist-cifras {
+        grid-template-columns: repeat(2, 1fr);
+    }
+}
