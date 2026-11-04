@@ -158,26 +158,35 @@ function linea(texto) {
     log.appendChild(p);
 }
 
+async function pedirJson(url) {
+    const res = await fetch(url);
+    const texto = await res.text();
+    try {
+        return JSON.parse(texto);
+    } catch (e) {
+        const limpio = texto.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 220);
+        return { ok: false, msg: 'respuesta no válida (HTTP ' + res.status + '): ' + limpio };
+    }
+}
+
 async function sincronizar() {
     for (const liga of ligas) {
         linea(`⏳ ${liga}...`);
         try {
-            const res = await fetch(`api_fetch.php?liga=${liga}`);
-            const data = await res.json();
+            const data = await pedirJson(`api_fetch.php?liga=${liga}`);
             log.lastChild.innerHTML = (data.ok ? '✅ ' : '⚠️ ') + liga + ': ' + data.msg;
         } catch (e) {
-            log.lastChild.innerHTML = '⚠️ ' + liga + ': error de red en el navegador.';
+            log.lastChild.innerHTML = '⚠️ ' + liga + ': no hubo conexión con el servidor (' + e.message + ').';
         }
         // pausa entre peticiones para respetar el límite de la API gratis (10 por minuto)
         await new Promise(r => setTimeout(r, 6500));
 
         linea(`⏳ ${liga} goleadores...`);
         try {
-            const res2 = await fetch(`api_fetch.php?liga=${liga}&tipo=goleadores`);
-            const data2 = await res2.json();
+            const data2 = await pedirJson(`api_fetch.php?liga=${liga}&tipo=goleadores`);
             log.lastChild.innerHTML = (data2.ok ? '✅ ' : '⚠️ ') + liga + ' goleadores: ' + data2.msg;
         } catch (e) {
-            log.lastChild.innerHTML = '⚠️ ' + liga + ' goleadores: error de red en el navegador.';
+            log.lastChild.innerHTML = '⚠️ ' + liga + ' goleadores: no hubo conexión con el servidor (' + e.message + ').';
         }
         await new Promise(r => setTimeout(r, 6500));
     }
