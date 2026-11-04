@@ -165,7 +165,7 @@ async function pedirJson(url) {
         return JSON.parse(texto);
     } catch (e) {
         const limpio = texto.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 220);
-        return { ok: false, msg: 'respuesta no válida (HTTP ' + res.status + '): ' + limpio };
+        return { ok: false, msg: 'respuesta no válida (HTTP ' + res.status + ') pidiendo ' + res.url + ' → ' + limpio };
     }
 }
 

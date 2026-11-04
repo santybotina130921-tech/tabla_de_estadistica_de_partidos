@@ -140,15 +140,25 @@ function linea(texto) {
     log.appendChild(p);
 }
 
+async function pedirJson(url) {
+    const res = await fetch(url);
+    const texto = await res.text();
+    try {
+        return JSON.parse(texto);
+    } catch (e) {
+        const limpio = texto.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 220);
+        return { ok: false, msg: 'respuesta no válida (HTTP ' + res.status + ') pidiendo ' + res.url + ' → ' + limpio };
+    }
+}
+
 async function sincronizar() {
     for (const liga of ligas) {
         linea(`⏳ ${nombres[liga]}...`);
         try {
-            const res = await fetch(`api_fetch_highlightly.php?liga=${liga}`);
-            const data = await res.json();
+            const data = await pedirJson(`Api_fetch_highlightly.php?liga=${liga}`);
             log.lastChild.innerHTML = (data.ok ? '✅ ' : '⚠️ ') + nombres[liga] + ': ' + data.msg;
         } catch (e) {
-            log.lastChild.innerHTML = '⚠️ ' + nombres[liga] + ': error de red en el navegador.';
+            log.lastChild.innerHTML = '⚠️ ' + nombres[liga] + ': no hubo conexión con el servidor (' + e.message + ').';
         }
         await new Promise(r => setTimeout(r, 1500));
     }
