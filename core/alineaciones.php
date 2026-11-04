@@ -81,6 +81,8 @@ function alProximoPartido(?string $apiKey, int $idA, int $idB): ?array
                     'estado'    => $m['state']['description'] ?? '',
                     'local'     => $m['homeTeam']['name'] ?? '',
                     'visitante' => $m['awayTeam']['name'] ?? '',
+                    'local_id'  => (int) ($m['homeTeam']['id'] ?? 0),
+                    'visitante_id' => (int) ($m['awayTeam']['id'] ?? 0),
                 ];
             }
         }

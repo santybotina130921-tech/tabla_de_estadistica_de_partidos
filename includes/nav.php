@@ -1,171 +1,103 @@
-<?php
-require_once __DIR__ . '/../config/database.php';
+<nav style="background: #161a1e; padding: 0; border-bottom: 2px solid #00ff00; font-family: 'Segoe UI', sans-serif; position: sticky; top: 0; z-index: 1000; box-shadow: 0 4px 20px rgba(0,0,0,0.5); width: 100%; box-sizing: border-box;">
+    <div class="nav-container">
+        
+        <a href="index.php" style="text-decoration: none; display: flex; align-items: center; gap: 10px;">
+            <div style="background: #00ff00; color: #000; font-weight: 900; padding: 5px 10px; border-radius: 4px; font-size: 18px;">DS</div>
+            <div class="logo-text" style="color: white; font-weight: 800; font-size: 20px; letter-spacing: -0.5px;">
+                AI <span style="color: #00ff00;">SANTIAGO</span>
+            </div>
+        </a>
 
-$apiKey = getenv('HIGHLIGHTLY_API_KEY');
-$season = 2026;
+        <div class="nav-links-group">
+            
+            <div class="nav-item">
+                <span class="nav-link <?= ($_GET['liga']??'') == 'WC' ? 'active' : '' ?>">🌍 SELECCIONES</span>
+                <div class="dropdown">
+                    <a href="index.php?liga=WC">🏆 Copa del Mundo</a>
+                    <a href="index.php?liga=EC">🇪🇺 Eurocopa</a>
+                    <a href="index.php?liga=HL_LIB">🏆 Copa Libertadores</a>
+                    <a href="index.php?liga=HL_SUD">🥈 Copa Sudamericana</a>
+                </div>
+            </div>
 
-$ligas = [
-    'HL_COL' => ['id' => 204173, 'nombre' => 'Primera A (Colombia)'],
-    'HL_ARG' => ['id' => 109712, 'nombre' => 'Liga Profesional (Argentina)'],
-    'HL_CHI' => ['id' => 226299, 'nombre' => 'Primera División (Chile)'],
-    'HL_URU' => ['id' => 228852, 'nombre' => 'Primera División Apertura (Uruguay)'],
-    'HL_PAR' => ['id' => 213534, 'nombre' => 'División Profesional Apertura (Paraguay)'],
-    'HL_PER' => ['id' => 239915, 'nombre' => 'Primera División (Perú)'],
-    'HL_ECU' => ['id' => 206726, 'nombre' => 'Liga Pro (Ecuador)'],
-    'HL_MEX' => ['id' => 223746, 'nombre' => 'Liga MX (México)'],
-    'HL_MLS' => ['id' => 216087, 'nombre' => 'MLS (USA)'],
-    'HL_SAU' => ['id' => 262041, 'nombre' => 'Pro League (Arabia Saudita)'],
-    'HL_LIB' => ['id' => 11847,  'nombre' => 'CONMEBOL Libertadores'],
-    'HL_SUD' => ['id' => 10145,  'nombre' => 'CONMEBOL Sudamericana'],
-];
+            <div class="nav-item">
+                <span class="nav-link">🇪🇺 EUROPA</span>
+                <div class="dropdown">
+                    <div style="padding: 10px; color: #00ff00; font-size: 10px; font-weight: bold; border-bottom: 1px solid #333;">TOP LIGAS</div>
+                    <a href="index.php?liga=PL">🏴󠁧󠁢󠁥󠁮󠁧󠁿 Premier League</a>
+                    <a href="index.php?liga=PD">🇪🇸 La Liga</a>
+                    <a href="index.php?liga=BL1">🇩🇪 Bundesliga</a>
+                    <a href="index.php?liga=SA">🇮🇹 Serie A</a>
+                    <a href="index.php?liga=FL1">🇫🇷 Ligue 1</a>
+                    <a href="index.php?liga=PPL">🇵🇹 Primeira Liga (Por)</a>
+                    <a href="index.php?liga=DED">🇳🇱 Eredivisie (Hol)</a>
+                    <a href="index.php?liga=ELC">🏴󠁧󠁢󠁥󠁮󠁧󠁿 Championship</a>
+                    <a href="index.php?liga=CL">✨ Champions League</a>
+                </div>
+            </div>
 
-function pedirStandingsHL(int $leagueId, int $season, string $apiKey): array
-{
-    $url = "https://soccer.highlightly.net/standings?leagueId=$leagueId&season=$season";
-    $ch = curl_init($url);
-    curl_setopt_array($ch, [
-        CURLOPT_RETURNTRANSFER => true,
-        CURLOPT_HTTPHEADER     => ["x-rapidapi-key: $apiKey"],
-        CURLOPT_TIMEOUT        => 20,
-    ]);
-    $body  = curl_exec($ch);
-    $http  = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-    $error = curl_error($ch);
-    curl_close($ch);
+            <div class="nav-item">
+                <span class="nav-link">🌎 LATINOAMÉRICA</span>
+                <div class="dropdown">
+                    <div style="padding: 10px; color: #00ff00; font-size: 10px; font-weight: bold; border-bottom: 1px solid #333;">LIGAS LOCALES</div>
+                    <a href="index.php?liga=HL_COL">🇨🇴 Liga BetPlay (Primera A)</a>
+                    <a href="index.php?liga=BSA">🇧🇷 Brasileirão</a>
+                    <a href="index.php?liga=HL_ARG">🇦🇷 Liga Profesional Argentina</a>
+                    <a href="index.php?liga=HL_URU">🇺🇾 Primera Uruguay</a>
+                    <a href="index.php?liga=HL_CHI">🇨🇱 Primera Chile</a>
+                    <a href="index.php?liga=HL_PAR">🇵🇾 División Profesional Paraguay</a>
+                    <a href="index.php?liga=HL_PER">🇵🇪 Primera Perú</a>
+                    <a href="index.php?liga=HL_ECU">🇪🇨 Liga Pro Ecuador</a>
+                    <a href="index.php?liga=HL_MEX">🇲🇽 Liga MX</a>
+                </div>
+            </div>
 
-    return ['body' => $body, 'http' => $http, 'error' => $error];
-}
+            <div class="nav-item">
+                <span class="nav-link">🌐 OTRAS</span>
+                <div class="dropdown">
+                    <a href="index.php?liga=HL_MLS">🇺🇸 MLS</a>
+                    <a href="index.php?liga=HL_SAU">🇸🇦 Pro League Arabia Saudita</a>
+                </div>
+            </div>
 
-// --- MODO 1: sincroniza UNA sola liga ---
-if (isset($_GET['liga'])) {
-    header('Content-Type: application/json; charset=utf-8');
+        </div>
 
-    if (!$apiKey) {
-        echo json_encode(['ok' => false, 'msg' => 'HIGHLIGHTLY_API_KEY no está definido en tu .env.']);
-        exit;
-    }
+        <div class="nav-actions">
+            <div class="api-status">
+                <div style="color: white; font-size: 11px; font-weight: bold;">STATUS API</div>
+                <div style="color: #00ff00; font-size: 10px;">● ONLINE</div>
+            </div>
+            <a href="historial.php" class="sync-button sync-historial">📈 HISTORIAL</a>
+            <a href="core/api_fetch.php" class="sync-button">🔄 SYNC EUROPA</a>
+            <a href="core/api_fetch_highlightly.php" class="sync-button" style="border-color:#f1c40f; color:#f1c40f;">🔄 SYNC LATAM</a>
+        </div>
+    </div>
 
-    $code = $_GET['liga'];
-    if (!isset($ligas[$code])) {
-        echo json_encode(['ok' => false, 'msg' => 'Liga no reconocida.']);
-        exit;
-    }
+    <style>
+        .nav-container { max-width: 1300px; margin: auto; display: flex; justify-content: space-between; align-items: center; height: 70px; padding: 0 25px; box-sizing: border-box; }
+        .nav-links-group { display: flex; gap: 5px; height: 100%; }
+        .nav-actions { display: flex; align-items: center; gap: 15px; }
+        .sync-button { background: #2b2f36; border: 1px solid #00ff00; color: #00ff00; padding: 8px 12px; border-radius: 6px; text-decoration: none; font-size: 12px; font-weight: bold; transition: 0.3s; white-space: nowrap; }
+        .sync-button:hover { background: #00ff00; color: #000; }
+        
+        .nav-item { position: relative; display: flex; align-items: center; }
+        .nav-link { color: #848e9c; text-decoration: none; font-size: 13px; font-weight: 700; padding: 0 20px; height: 100%; display: flex; align-items: center; cursor: pointer; transition: 0.3s; border-bottom: 3px solid transparent; }
+        .nav-link:hover, .nav-link.active { color: #00ff00; background: rgba(0, 255, 0, 0.05); border-bottom: 3px solid #00ff00; }
+        
+        .dropdown { display: none; position: absolute; top: 70px; left: 0; background: #1c2127; min-width: 260px; box-shadow: 0 10px 30px rgba(0,0,0,0.5); border: 1px solid #333; border-radius: 0 0 10px 10px; z-index: 1001; }
+        .nav-item:hover .dropdown { display: block; animation: fadeIn 0.2s ease-out; }
+        .dropdown a { color: white; padding: 12px 20px; text-decoration: none; display: block; font-size: 13px; transition: 0.2s; border-bottom: 1px solid #222; }
+        .dropdown a:hover { background: #2b2f36; color: #00ff00; padding-left: 25px; }
 
-    $leagueId = $ligas[$code]['id'];
-    $r = pedirStandingsHL($leagueId, $season, $apiKey);
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
 
-    if ($r['error']) {
-        echo json_encode(['ok' => false, 'msg' => "error de conexión → {$r['error']}"]);
-        exit;
-    }
-    if ($r['http'] === 429) {
-        echo json_encode(['ok' => false, 'msg' => 'límite diario de peticiones alcanzado (HTTP 429).']);
-        exit;
-    }
-    if ($r['http'] !== 200) {
-        echo json_encode(['ok' => false, 'msg' => "la API respondió HTTP {$r['http']}: " . substr($r['body'] ?? '', 0, 200)]);
-        exit;
-    }
-
-    $data = json_decode($r['body'], true);
-    $sql = "INSERT INTO estadisticas_reales
-            (equipo_nombre, liga_id, logo_url, posicion_tabla, partidos_jugados, goles_favor, goles_contra,
-             tarjetas_rojas, penaltis_anotados, corners_total, tarjetas_amarillas, atajadas_portero, posesion_media,
-             puntos, ganados, empatados, perdidos)
-            VALUES (:nom, :liga, :logo, :pos, :pj, :gf, :gc, :rj, :pn, :co, :am, :at, :po, :pt, :gn, :em, :pe)
-            ON CONFLICT (equipo_nombre, liga_id) DO UPDATE SET
-                logo_url         = EXCLUDED.logo_url,
-                posicion_tabla   = EXCLUDED.posicion_tabla,
-                partidos_jugados = EXCLUDED.partidos_jugados,
-                goles_favor      = EXCLUDED.goles_favor,
-                goles_contra     = EXCLUDED.goles_contra,
-                puntos           = EXCLUDED.puntos,
-                ganados          = EXCLUDED.ganados,
-                empatados        = EXCLUDED.empatados,
-                perdidos         = EXCLUDED.perdidos,
-                actualizado_en   = now()";
-    $stmt = $conexion->prepare($sql);
-
-    $total = 0;
-    foreach ($data['groups'] ?? [] as $grupo) {
-        foreach ($grupo['standings'] ?? [] as $fila) {
-            $stmt->execute([
-                ':nom'  => $fila['team']['name'],
-                ':liga' => $code,
-                ':logo' => $fila['team']['logo'] ?? null,
-                ':pos'  => $fila['position'],
-                ':pj'   => $fila['total']['games'] ?? 0,
-                ':gf'   => $fila['total']['scoredGoals'] ?? 0,
-                ':gc'   => $fila['total']['receivedGoals'] ?? 0,
-                ':rj'   => rand(0, 3),
-                ':pn'   => rand(1, 6),
-                ':co'   => rand(90, 160),
-                ':am'   => rand(30, 80),
-                ':at'   => rand(40, 110),
-                ':po'   => rand(45, 55),
-                ':pt'   => $fila['points'] ?? null,
-                ':gn'   => $fila['total']['wins'] ?? 0,
-                ':em'   => $fila['total']['draws'] ?? 0,
-                ':pe'   => $fila['total']['loses'] ?? 0,
-            ]);
-            $total++;
+        /* --- RESPONSIVE --- */
+        @media (max-width: 950px) {
+            .logo-text, .api-status { display: none; }
+            .nav-container { height: 60px; padding: 0 10px; }
+            .nav-link { padding: 0 10px; font-size: 11px; }
+            .sync-button { padding: 5px 8px; font-size: 10px; }
+            .dropdown { top: 60px; min-width: 220px; }
         }
-    }
-
-    echo json_encode(['ok' => true, 'msg' => "sincronizada ($total equipos)."]);
-    exit;
-}
-
-// --- MODO 2: página con el botón que va llamando al Modo 1, una liga a la vez ---
-?>
-<!DOCTYPE html>
-<html lang="es">
-<head>
-<meta charset="UTF-8">
-<title>Sincronizando Latam/MLS/Arabia...</title>
-</head>
-<body style="background:#0b0e11; color:white; font-family:sans-serif; padding:20px;">
-<h1>🌎 Sincronización Latinoamérica / MLS / Arabia</h1>
-<div id="log"></div>
-<p style="margin-top:20px;"><a href="../index.php" style="color:#00ff00;">← Volver al predictor</a></p>
-
-<script>
-const ligas = <?= json_encode(array_keys($ligas)) ?>;
-const nombres = <?= json_encode(array_map(fn($l) => $l['nombre'], $ligas)) ?>;
-const log = document.getElementById('log');
-
-function linea(texto) {
-    const p = document.createElement('div');
-    p.innerHTML = texto;
-    log.appendChild(p);
-}
-
-async function pedirJson(url) {
-    const res = await fetch(url);
-    const texto = await res.text();
-    try {
-        return JSON.parse(texto);
-    } catch (e) {
-        const limpio = texto.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 220);
-        return { ok: false, msg: 'respuesta no válida (HTTP ' + res.status + '): ' + limpio };
-    }
-}
-
-async function sincronizar() {
-    for (const liga of ligas) {
-        linea(`⏳ ${nombres[liga]}...`);
-        try {
-            const data = await pedirJson(`api_fetch_highlightly.php?liga=${liga}`);
-            log.lastChild.innerHTML = (data.ok ? '✅ ' : '⚠️ ') + nombres[liga] + ': ' + data.msg;
-        } catch (e) {
-            log.lastChild.innerHTML = '⚠️ ' + nombres[liga] + ': no hubo conexión con el servidor (' + e.message + ').';
-        }
-        await new Promise(r => setTimeout(r, 1500));
-    }
-    linea('<br><b style="color:#00ff00;">Listo.</b>');
-}
-
-sincronizar();
-</script>
-</body>
-</html>
+    </style>
+</nav>

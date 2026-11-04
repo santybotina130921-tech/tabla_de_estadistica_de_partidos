@@ -2,3 +2,8 @@
 *.exe
 config/*.exe
 config/*.bin
+core/cache/
+core/*.log
+Buscar-ligas.php
+Verificar-equipos.php
+probar-stats.php
