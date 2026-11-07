@@ -1,5 +1,5 @@
 <?php
-require_once __DIR__ . '/../core/clima.php';
+require_once __DIR__ . '/../core/Clima.php';
 
 $clKey = getenv('HIGHLIGHTLY_API_KEY');
 $clIdL = (int) ($realL['highlightly_id'] ?? 0);
