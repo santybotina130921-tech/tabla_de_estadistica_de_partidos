@@ -405,7 +405,7 @@ if (!empty($seleccion['local']) && !empty($seleccion['visitante'])) {
                     </div>
                 </div>
 
-                <?php include 'includes/clima_view.php'; ?>
+                <?php include 'includes/Clima_view.php'; ?>
                 <?php include 'includes/alineaciones_view.php'; ?>
             <?php endif; ?>
         </div>
