@@ -14,7 +14,7 @@ $alData    = $alPartido ? alAlineacion($alApiKey, $alPartido) : null;
     $alZona = new DateTimeZone('America/Bogota');
 
     if (!$alIdL || !$alIdV): ?>
-        <div class="al-aviso">No pude identificar a uno de los dos equipos en Highlightly, así que no puedo buscar su alineación. Revisa que ambos aparezcan en verde en <b>verificar-equipos.php</b>.</div>
+        <div class="al-aviso">Todavía no tengo vinculado a uno de los dos equipos con Highlightly, así que no puedo buscar su alineación.</div>
 
     <?php elseif (!$alPartido): ?>
         <div class="al-aviso">No encontré un partido próximo entre <b><?= htmlspecialchars($L['equipo_nombre']) ?></b> y <b><?= htmlspecialchars($V['equipo_nombre']) ?></b>. Las alineaciones solo existen para partidos reales programados.</div>

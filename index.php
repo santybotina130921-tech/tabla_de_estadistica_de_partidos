@@ -1,5 +1,6 @@
 <?php
 require_once 'config/database.php';
+require_once __DIR__ . '/core/ligas.php';
 $liga_actual = $_GET['liga'] ?? 'TODAS';
 
 // Lógica de carga (Individual o Super Liga)
@@ -15,10 +16,12 @@ $equipos = $stmt->fetchAll();
 $L = null; $V = null; $h2h_real = [];
 $pL = 0; $pE = 0; $pV = 0;
 
-if (isset($_POST['local'], $_POST['visitante'])) {
+$seleccion = isset($_POST['local'], $_POST['visitante']) ? $_POST : $_GET;
+
+if (!empty($seleccion['local']) && !empty($seleccion['visitante'])) {
     foreach ($equipos as $e) {
-        if ($e['equipo_nombre'] == $_POST['local']) $L = $e;
-        if ($e['equipo_nombre'] == $_POST['visitante']) $V = $e;
+        if ($e['equipo_nombre'] == $seleccion['local']) $L = $e;
+        if ($e['equipo_nombre'] == $seleccion['visitante']) $V = $e;
     }
 
     if ($L && $V) {
@@ -87,7 +90,7 @@ if (isset($_POST['local'], $_POST['visitante'])) {
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>SANTIAGO AI - PREDICTOR ELITE</title>
-    <link rel="stylesheet" href="assets/css/extras.css">
+    <link rel="stylesheet" href="assets/css/extras.css?v=<?= filemtime(__DIR__ . '/assets/css/extras.css') ?>">
     <style>
         :root { --green: #00ff00; --red: #ff4444; --dark: #0b0e11; --card: #161a1e; --gold: #f1c40f; }
         html { color-scheme: dark; }
@@ -179,11 +182,11 @@ if (isset($_POST['local'], $_POST['visitante'])) {
 <body>
     <?php include 'includes/nav.php'; ?>
     <div class="container">
-        <select onchange="location.href='?liga='+this.value" style="background: var(--green); color: black; margin-bottom: 20px;">
+        <select class="liga-selector" onchange="location.href='?liga='+this.value">
             <option value="TODAS" <?= $liga_actual == 'TODAS' ? 'selected' : '' ?>>🌍 TODAS LAS LIGAS (Super Clubes)</option>
-            <option value="CL" <?= $liga_actual == 'CL' ? 'selected' : '' ?>>🏆 Champions League</option>
-            <option value="PD" <?= $liga_actual == 'PD' ? 'selected' : '' ?>>🇪🇸 La Liga</option>
-            <option value="PL" <?= $liga_actual == 'PL' ? 'selected' : '' ?>>🏴󠁧󠁢󠁥󠁮󠁧󠁿 Premier League</option>
+            <?php foreach (ligasEnBase($conexion) as $codigoLiga => $etiquetaLiga): ?>
+                <option value="<?= htmlspecialchars($codigoLiga) ?>" <?= $liga_actual == $codigoLiga ? 'selected' : '' ?>><?= htmlspecialchars($etiquetaLiga) ?></option>
+            <?php endforeach; ?>
         </select>
 
         <div class="main-card">
@@ -194,7 +197,7 @@ if (isset($_POST['local'], $_POST['visitante'])) {
                     <div>
                         <div class="shield">
                             <?php if($L): ?><div class="pos-badge">#<?= $L['posicion_tabla'] ?></div><?php endif; ?>
-                            <img src="<?= $L['logo_url'] ?? '' ?>">
+                            <?php if (!empty($L['logo_url'])): ?><img src="<?= htmlspecialchars($L['logo_url']) ?>" alt="" width="140" height="140" decoding="async"><?php endif; ?>
                         </div>
                         <div class="team-picker local">
                         <select name="local" onchange="this.form.submit()">
@@ -217,7 +220,7 @@ if (isset($_POST['local'], $_POST['visitante'])) {
                     <div>
                         <div class="shield" style="border-color:var(--red);">
                             <?php if($V): ?><div class="pos-badge" style="background:silver;">#<?= $V['posicion_tabla'] ?></div><?php endif; ?>
-                            <img src="<?= $V['logo_url'] ?? '' ?>">
+                            <?php if (!empty($V['logo_url'])): ?><img src="<?= htmlspecialchars($V['logo_url']) ?>" alt="" width="140" height="140" decoding="async"><?php endif; ?>
                         </div>
                         <div class="team-picker visitante">
                         <select name="visitante" onchange="this.form.submit()">
@@ -253,7 +256,7 @@ if (isset($_POST['local'], $_POST['visitante'])) {
                                 ?>
                                 <tr class="<?= implode(' ', $clases) ?>">
                                     <td class="pos"><?= $e['posicion_tabla'] ?? '-' ?></td>
-                                    <td class="club"><img src="<?= htmlspecialchars($e['logo_url'] ?? '') ?>" alt=""><?= htmlspecialchars($e['equipo_nombre']) ?></td>
+                                    <td class="club"><?php if (!empty($e['logo_url'])): ?><img src="<?= htmlspecialchars($e['logo_url']) ?>" alt="" width="22" height="22" loading="lazy" decoding="async"><?php endif; ?><?= htmlspecialchars($e['equipo_nombre']) ?></td>
                                     <td><?= $e['partidos_jugados'] ?? 0 ?></td>
                                     <td><?= $e['ganados'] ?? 0 ?></td>
                                     <td><?= $e['empatados'] ?? 0 ?></td>

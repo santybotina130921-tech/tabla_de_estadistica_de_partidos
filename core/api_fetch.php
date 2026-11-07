@@ -142,11 +142,14 @@ if (isset($_GET['liga'])) {
 <head>
 <meta charset="UTF-8">
 <title>Sincronizando...</title>
+<link rel="stylesheet" href="../assets/css/extras.css?v=<?= filemtime(__DIR__ . '/../assets/css/extras.css') ?>">
 </head>
-<body style="background:#0b0e11; color:white; font-family:sans-serif; padding:20px;">
+<body class="pagina-simple">
+<div class="contenedor">
 <h1>🚀 Sincronización de la temporada actual</h1>
 <div id="log"></div>
-<p style="margin-top:20px;"><a href="../index.php" style="color:#00ff00;">← Volver al predictor</a></p>
+<p class="sync-volver"><a href="../index.php">← Volver al predictor</a></p>
+</div>
 
 <script>
 const ligas = <?= json_encode($competencias) ?>;
@@ -190,7 +193,7 @@ async function sincronizar() {
         }
         await new Promise(r => setTimeout(r, 6500));
     }
-    linea('<br><b style="color:#00ff00;">Listo.</b>');
+    linea('Listo.');
 }
 
 sincronizar();

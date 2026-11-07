@@ -1,21 +1,20 @@
 FROM php:8.2-apache
 
-# 1. Instalar dependencias del sistema necesarias para PostgreSQL
 RUN apt-get update && apt-get install -y \
     libpq-dev \
     && rm -rf /var/lib/apt/lists/*
 
-# 2. Instalar las extensiones de PHP para PostgreSQL y PDO
-RUN docker-php-ext-install pdo pdo_pgsql pgsql
+RUN docker-php-ext-install pdo pdo_pgsql pgsql opcache
 
-# 3. Habilitar mod_rewrite de Apache (útil para enrutamiento y URLs amigables)
-RUN a2enmod rewrite
+RUN a2enmod rewrite deflate expires headers
 
-# 4. Copiar los archivos de tu proyecto al contenedor
+COPY docker/rendimiento.conf /etc/apache2/conf-available/rendimiento.conf
+COPY docker/opcache.ini /usr/local/etc/php/conf.d/opcache.ini
+RUN a2enconf rendimiento
+
 COPY . /var/www/html/
+RUN rm -rf /var/www/html/docker \
+    && mkdir -p /var/www/html/core/cache \
+    && chown -R www-data:www-data /var/www/html
 
-# 5. Configurar permisos apropiados
-RUN chown -R www-data:www-data /var/www/html
-
-# Exponer el puerto 80 que usará Render
 EXPOSE 80

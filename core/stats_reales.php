@@ -129,7 +129,7 @@ function obtenerStatsReales(PDO $conexion, ?string $apiKey, string $equipoNombre
     $stmt->execute([':n' => $equipoNombre]);
     $cache = $stmt->fetch(PDO::FETCH_ASSOC);
 
-    if ($cache && strtotime($cache['actualizado_en']) > strtotime("-$diasCache days")) {
+    if ($cache && $cache['partidos_analizados'] !== null && strtotime($cache['actualizado_en']) > strtotime("-$diasCache days")) {
         return $cache;
     }
 

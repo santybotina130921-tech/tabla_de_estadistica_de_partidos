@@ -9,6 +9,10 @@
         </a>
 
         <div class="nav-links-group">
+
+            <div class="nav-item">
+                <a class="nav-link" href="hoy.php">📅 PARTIDOS HOY</a>
+            </div>
             
             <div class="nav-item">
                 <span class="nav-link <?= ($_GET['liga']??'') == 'WC' ? 'active' : '' ?>">🌍 SELECCIONES</span>

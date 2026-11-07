@@ -30,7 +30,7 @@ $zona = new DateTimeZone('America/Bogota');
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Historial de aciertos - SANTIAGO AI</title>
-    <link rel="stylesheet" href="assets/css/extras.css">
+    <link rel="stylesheet" href="assets/css/extras.css?v=<?= filemtime(__DIR__ . '/assets/css/extras.css') ?>">
 </head>
 <body class="pagina-simple">
     <?php include 'includes/nav.php'; ?>
