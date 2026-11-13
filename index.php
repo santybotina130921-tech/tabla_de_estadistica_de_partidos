@@ -68,6 +68,7 @@ if (!empty($seleccion['local']) && !empty($seleccion['visitante'])) {
         // --- 2. GUARDAR LA PREDICCIÓN (solo si hay un partido real próximo entre los dos) ---
         // Sirve para el historial de aciertos: se guarda ANTES del partido y luego se compara con el resultado.
         require_once __DIR__ . '/core/alineaciones.php';
+        require_once __DIR__ . '/core/detalle.php';
         require_once __DIR__ . '/core/predicciones.php';
         $idHL_L = (int) ($realL['highlightly_id'] ?? 0);
         $idHL_V = (int) ($realV['highlightly_id'] ?? 0);
@@ -75,7 +76,8 @@ if (!empty($seleccion['local']) && !empty($seleccion['visitante'])) {
             $proximoReal = alProximoPartido($apiKeyHL, $idHL_L, $idHL_V);
             if ($proximoReal) {
                 try {
-                    guardarPrediccionReal($conexion, $proximoReal, $L, $V, $idHL_L, $equipos);
+                    $detalleHL = hlDetalleCompleto($apiKeyHL, (int) $proximoReal['id']);
+                    guardarPrediccionReal($conexion, $proximoReal, $L, $V, $idHL_L, $equipos, $detalleHL['prediccion'] ?? null);
                 } catch (Exception $e) {
                     error_log('No se pudo guardar la predicción: ' . $e->getMessage());
                 }
@@ -240,8 +242,12 @@ if (!empty($seleccion['local']) && !empty($seleccion['visitante'])) {
                 ?>
                 <div class="standings-wrap">
                     <h2 class="standings-title">📋 Tabla de posiciones</h2>
+                    <div class="hoy-buscador">
+                        <input type="search" class="hoy-input tabla-buscar" data-tabla="tabla-posiciones" placeholder="Buscar equipo en la tabla..." autocomplete="off" aria-label="Buscar equipo en la tabla">
+                    </div>
+                    <p class="hoy-nota" id="tabla-estado" aria-live="polite"></p>
                     <div class="standings-scroll">
-                        <table class="standings">
+                        <table class="standings" id="tabla-posiciones" data-liga="<?= htmlspecialchars($liga_actual) ?>">
                             <thead>
                                 <tr><th>#</th><th>Club</th><th>PJ</th><th>G</th><th>E</th><th>P</th><th>GF</th><th>GC</th><th>DIF</th><th>PTS</th></tr>
                             </thead>
@@ -254,17 +260,17 @@ if (!empty($seleccion['local']) && !empty($seleccion['visitante'])) {
                                     if ($V && $e['equipo_nombre'] === $V['equipo_nombre']) $clases[] = 'es-visitante';
                                     $dif = ($e['goles_favor'] ?? 0) - ($e['goles_contra'] ?? 0);
                                 ?>
-                                <tr class="<?= implode(' ', $clases) ?>">
-                                    <td class="pos"><?= $e['posicion_tabla'] ?? '-' ?></td>
+                                <tr class="<?= implode(' ', $clases) ?>" data-equipo="<?= htmlspecialchars($e['equipo_nombre']) ?>">
+                                    <td class="pos" data-campo="pos"><?= $e['posicion_tabla'] ?? '-' ?></td>
                                     <td class="club"><?php if (!empty($e['logo_url'])): ?><img src="<?= htmlspecialchars($e['logo_url']) ?>" alt="" width="22" height="22" loading="lazy" decoding="async"><?php endif; ?><?= htmlspecialchars($e['equipo_nombre']) ?></td>
-                                    <td><?= $e['partidos_jugados'] ?? 0 ?></td>
-                                    <td><?= $e['ganados'] ?? 0 ?></td>
-                                    <td><?= $e['empatados'] ?? 0 ?></td>
-                                    <td><?= $e['perdidos'] ?? 0 ?></td>
-                                    <td><?= $e['goles_favor'] ?? 0 ?></td>
-                                    <td><?= $e['goles_contra'] ?? 0 ?></td>
-                                    <td><?= $dif > 0 ? '+' : '' ?><?= $dif ?></td>
-                                    <td class="pts"><?= $e['puntos'] ?? '-' ?></td>
+                                    <td data-campo="pj"><?= $e['partidos_jugados'] ?? 0 ?></td>
+                                    <td data-campo="g"><?= $e['ganados'] ?? 0 ?></td>
+                                    <td data-campo="e"><?= $e['empatados'] ?? 0 ?></td>
+                                    <td data-campo="p"><?= $e['perdidos'] ?? 0 ?></td>
+                                    <td data-campo="gf"><?= $e['goles_favor'] ?? 0 ?></td>
+                                    <td data-campo="gc"><?= $e['goles_contra'] ?? 0 ?></td>
+                                    <td data-campo="dif"><?= $dif > 0 ? '+' : '' ?><?= $dif ?></td>
+                                    <td class="pts" data-campo="pts"><?= $e['puntos'] ?? '-' ?></td>
                                 </tr>
                                 <?php endforeach; ?>
                             </tbody>
@@ -405,12 +411,15 @@ if (!empty($seleccion['local']) && !empty($seleccion['visitante'])) {
                     </div>
                 </div>
 
-                <?php include 'includes/Clima_view.php'; ?>
+                <?php include 'includes/graficos_view.php'; ?>
+                <?php include 'includes/comparador_view.php'; ?>
+                <?php include 'includes/clima_view.php'; ?>
                 <?php include 'includes/alineaciones_view.php'; ?>
             <?php endif; ?>
         </div>
     </div>
     <?php include 'includes/footer.php'; ?>
     <?php include 'includes/chat_widget.php'; ?>
+    <script src="assets/js/tabla.js?v=<?= filemtime(__DIR__ . '/assets/js/tabla.js') ?>" defer></script>
 </body>
 </html>

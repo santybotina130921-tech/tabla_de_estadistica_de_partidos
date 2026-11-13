@@ -8,17 +8,59 @@ if (!in_array($dia, ['ayer', 'hoy', 'manana'], true)) {
     $dia = 'hoy';
 }
 
-$datos = ptPartidosDelDia($dia);
+if (($_GET['formato'] ?? '') === 'json') {
+    ini_set('display_errors', '0');
+    header('Content-Type: application/json; charset=utf-8');
+    header('Cache-Control: no-store');
 
-$refrescar = 0;
-if ($datos['pendientes'] > 0) {
-    $refrescar = 6;
-} elseif ($dia === 'hoy' && $datos['hayVivo']) {
-    $refrescar = 120;
+    try {
+        $datos = ptPartidosDelDia($dia);
+        $grupos = [];
+        foreach ($datos['grupos'] as $g) {
+            $lista = [];
+            foreach ($g['partidos'] as $p) {
+                $lista[] = [
+                    'k'              => $p['liga_codigo'] . '|' . $p['local'] . '|' . $p['visitante'],
+                    'hora'           => ptHora($p['inicio']),
+                    'estado'         => $p['estado'],
+                    'minuto'         => $p['minuto'],
+                    'local'          => $p['local'],
+                    'local_logo'     => $p['local_logo'],
+                    'visitante'      => $p['visitante'],
+                    'visitante_logo' => $p['visitante_logo'],
+                    'gl'             => $p['gl'],
+                    'gv'             => $p['gv'],
+                    'url'            => 'index.php?liga=' . rawurlencode($p['liga_codigo']) . '&local=' . rawurlencode($p['local']) . '&visitante=' . rawurlencode($p['visitante']),
+                    'resumen'        => $p['hl_id'] ? 'partido.php?id=' . (int) $p['hl_id'] : null,
+                ];
+            }
+            $grupos[] = ['codigo' => $g['codigo'], 'titulo' => $g['titulo'], 'partidos' => $lista];
+        }
+        echo json_encode([
+            'fecha'      => $datos['fecha'],
+            'grupos'     => $grupos,
+            'avisos'     => $datos['avisos'],
+            'total'      => $datos['total'],
+            'pendientes' => $datos['pendientes'],
+            'hayVivo'    => $datos['hayVivo'],
+            'edad_min'   => intdiv((int) $datos['edad'], 60),
+        ], JSON_UNESCAPED_UNICODE);
+    } catch (Throwable $e) {
+        error_log('hoy.php: ' . $e->getMessage());
+        echo json_encode(['error' => 'No se pudieron cargar los partidos. Intenta de nuevo en un momento.']);
+    }
+    exit;
 }
 
+$base = new DateTime('now', new DateTimeZone('America/Bogota'));
+if ($dia === 'ayer') {
+    $base->modify('-1 day');
+}
+if ($dia === 'manana') {
+    $base->modify('+1 day');
+}
+$etiquetaFecha = ptEtiquetaFecha($base->format('Y-m-d'));
 $etiquetasDia = ['ayer' => 'Ayer', 'hoy' => 'Hoy', 'manana' => 'Mañana'];
-$etiquetasEstado = ['vivo' => 'EN VIVO', 'final' => 'FINAL', 'programado' => 'PROGRAMADO', 'aplazado' => 'APLAZADO'];
 ?>
 <!DOCTYPE html>
 <html lang="es">
@@ -27,16 +69,13 @@ $etiquetasEstado = ['vivo' => 'EN VIVO', 'final' => 'FINAL', 'programado' => 'PR
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Partidos de hoy - SANTIAGO AI</title>
     <link rel="stylesheet" href="assets/css/extras.css?v=<?= filemtime(__DIR__ . '/assets/css/extras.css') ?>">
-    <?php if ($refrescar): ?>
-        <meta http-equiv="refresh" content="<?= $refrescar ?>">
-    <?php endif; ?>
 </head>
 <body class="pagina-simple">
     <?php include 'includes/nav.php'; ?>
 
     <div class="contenedor">
         <h1 class="hist-titulo">📅 Partidos <span><?= $etiquetasDia[$dia] ?></span></h1>
-        <p class="hoy-fecha"><?= htmlspecialchars(ptEtiquetaFecha($datos['fecha'])) ?> · hora de Colombia</p>
+        <p class="hoy-fecha"><?= htmlspecialchars($etiquetaFecha) ?> · hora de Colombia</p>
 
         <div class="hoy-tabs">
             <?php foreach ($etiquetasDia as $clave => $etiqueta): ?>
@@ -44,55 +83,34 @@ $etiquetasEstado = ['vivo' => 'EN VIVO', 'final' => 'FINAL', 'programado' => 'PR
             <?php endforeach; ?>
         </div>
 
-        <?php if ($datos['pendientes'] > 0): ?>
-            <div class="h2h-aviso">Cargando ligas… faltan <?= (int) $datos['pendientes'] ?>. Esta página se actualiza sola en unos segundos.</div>
-        <?php endif; ?>
+        <div class="hoy-buscador">
+            <input type="search" id="hoy-buscar" class="hoy-input" placeholder="Buscar equipo o liga..." autocomplete="off" aria-label="Buscar equipo o liga">
+        </div>
 
-        <?php foreach ($datos['avisos'] as $aviso): ?>
-            <div class="h2h-aviso"><?= htmlspecialchars($aviso) ?></div>
-        <?php endforeach; ?>
+        <p class="hoy-nota" id="hoy-nota" aria-live="polite"></p>
+        <div id="hoy-avisos"></div>
 
-        <?php if (!$datos['grupos']): ?>
-            <div class="hist-vacio">No hay partidos de las ligas que seguimos para este día.</div>
-        <?php else: ?>
-            <p class="hoy-resumen"><b><?= (int) $datos['total'] ?></b> partidos<?= $datos['hayVivo'] ? ' · hay partidos en vivo' : '' ?></p>
+        <div id="hoy-app" data-url="hoy.php?formato=json&amp;dia=<?= $dia ?>" data-dia="<?= $dia ?>">
+            <div class="skeleton-liga">
+                <div class="skeleton-linea skeleton-titulo"></div>
+                <div class="skeleton-fila"><div class="skeleton-linea"></div><div class="skeleton-linea"></div><div class="skeleton-linea"></div></div>
+                <div class="skeleton-fila"><div class="skeleton-linea"></div><div class="skeleton-linea"></div><div class="skeleton-linea"></div></div>
+                <div class="skeleton-fila"><div class="skeleton-linea"></div><div class="skeleton-linea"></div><div class="skeleton-linea"></div></div>
+            </div>
+            <div class="skeleton-liga">
+                <div class="skeleton-linea skeleton-titulo"></div>
+                <div class="skeleton-fila"><div class="skeleton-linea"></div><div class="skeleton-linea"></div><div class="skeleton-linea"></div></div>
+                <div class="skeleton-fila"><div class="skeleton-linea"></div><div class="skeleton-linea"></div><div class="skeleton-linea"></div></div>
+            </div>
+        </div>
 
-            <?php foreach ($datos['grupos'] as $grupo): ?>
-                <div class="hoy-liga">
-                    <h3><?= htmlspecialchars($grupo['titulo']) ?></h3>
-
-                    <?php foreach ($grupo['partidos'] as $p):
-                        $conMarcador = ($p['estado'] === 'vivo' || $p['estado'] === 'final') && $p['gl'] !== null && $p['gv'] !== null;
-                        $urlAnalizar = 'index.php?liga=' . rawurlencode($p['liga_codigo']) . '&local=' . rawurlencode($p['local']) . '&visitante=' . rawurlencode($p['visitante']);
-                        ?>
-                        <div class="hoy-partido">
-                            <div class="hoy-hora"><?= ptHora($p['inicio']) ?></div>
-
-                            <div class="hoy-equipos">
-                                <span class="hoy-equipo">
-                                    <?php if ($p['local_logo']): ?><img src="<?= htmlspecialchars($p['local_logo']) ?>" alt="" width="22" height="22" loading="lazy" decoding="async"><?php endif; ?>
-                                    <?= htmlspecialchars($p['local']) ?>
-                                </span>
-                                <span class="hoy-marcador"><?= $conMarcador ? (int) $p['gl'] . ' - ' . (int) $p['gv'] : 'vs' ?></span>
-                                <span class="hoy-equipo">
-                                    <?php if ($p['visitante_logo']): ?><img src="<?= htmlspecialchars($p['visitante_logo']) ?>" alt="" width="22" height="22" loading="lazy" decoding="async"><?php endif; ?>
-                                    <?= htmlspecialchars($p['visitante']) ?>
-                                </span>
-                            </div>
-
-                            <div class="hoy-lado">
-                                <span class="hoy-estado estado-<?= $p['estado'] ?>">
-                                    <?= $etiquetasEstado[$p['estado']] ?><?= ($p['estado'] === 'vivo' && $p['minuto']) ? ' ' . (int) $p['minuto'] . "'" : '' ?>
-                                </span>
-                                <a class="hoy-analizar" href="<?= htmlspecialchars($urlAnalizar) ?>">Analizar →</a>
-                            </div>
-                        </div>
-                    <?php endforeach; ?>
-                </div>
-            <?php endforeach; ?>
-        <?php endif; ?>
+        <noscript>
+            <div class="h2h-aviso">Esta página necesita JavaScript para mostrar los partidos.</div>
+        </noscript>
     </div>
 
     <?php include 'includes/footer.php'; ?>
+    <?php include 'includes/chat_widget.php'; ?>
+    <script src="assets/js/hoy.js?v=<?= filemtime(__DIR__ . '/assets/js/hoy.js') ?>" defer></script>
 </body>
 </html>

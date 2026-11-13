@@ -70,6 +70,21 @@ $zona = new DateTimeZone('America/Bogota');
                     </div>
                 </div>
 
+                <?php if (($stats['hl_n'] ?? 0) > 0): ?>
+                    <div class="hist-cifras hist-cifras-dos">
+                        <div class="hist-cifra">
+                            <small>Tu modelo (mismos partidos)</small>
+                            <b><?= histPorcentaje($stats['modelo_en_hl'], $stats['hl_n']) ?></b>
+                            <span><?= $stats['modelo_en_hl'] ?> de <?= $stats['hl_n'] ?></span>
+                        </div>
+                        <div class="hist-cifra">
+                            <small>Modelo de Highlightly</small>
+                            <b><?= histPorcentaje($stats['hl_x12'], $stats['hl_n']) ?></b>
+                            <span><?= $stats['hl_x12'] ?> de <?= $stats['hl_n'] ?></span>
+                        </div>
+                    </div>
+                <?php endif; ?>
+
                 <div class="hist-nota">
                     <?php if ($stats['total'] < 30): ?>
                         Por ahora son solo <b><?= $stats['total'] ?></b> partidos terminados: con tan pocos, el porcentaje no dice casi nada. Se vuelve confiable con 30 o más.

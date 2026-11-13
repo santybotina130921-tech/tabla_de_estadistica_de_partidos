@@ -13,15 +13,16 @@ require_once __DIR__ . '/stats_reales.php'; // hlLlamar()
 /**
  * Guarda (o actualiza, mientras el partido no haya empezado) la predicción de un
  * partido real. Se calcula con el equipo que de verdad juega de local en ese partido.
+ * Si se pasa $hl, guarda también las probabilidades de Highlightly para compararlas luego.
  */
-function guardarPrediccionReal(PDO $c, array $partido, array $L, array $V, int $idL, array $equipos): void
+function guardarPrediccionReal(PDO $c, array $partido, array $L, array $V, int $idL, array $equipos, ?array $hl = null): void
 {
     if ((int) $partido['inicio'] <= time()) {
-        return; // solo predicciones hechas antes del pitazo
+        return;
     }
     $localId = (int) ($partido['local_id'] ?? 0);
     if (!$localId) {
-        return; // sin saber quién es el local no se puede guardar sin riesgo de invertir la predicción
+        return;
     }
 
     $homeEsL = ($localId === $idL);
@@ -31,18 +32,7 @@ function guardarPrediccionReal(PDO $c, array $partido, array $L, array $V, int $
     $media = mediaLigaDe($equipos, array_values(array_unique([$home['liga_id'], $away['liga_id']])));
     $m = modeloPoisson($home, $away, $media);
 
-    $sql = "INSERT INTO predicciones
-              (partido_id, inicio, liga, local_nombre, visitante_nombre, prob_local, prob_empate, prob_visitante,
-               marcador_local, marcador_visitante, prob_over25, prob_btts)
-            VALUES (:id, CAST(:inicio AS timestamptz), :liga, :ln, :vn, :pl, :pe, :pv, :ml, :mv, :o25, :bt)
-            ON CONFLICT (partido_id) DO UPDATE SET
-              inicio = EXCLUDED.inicio, liga = EXCLUDED.liga,
-              prob_local = EXCLUDED.prob_local, prob_empate = EXCLUDED.prob_empate, prob_visitante = EXCLUDED.prob_visitante,
-              marcador_local = EXCLUDED.marcador_local, marcador_visitante = EXCLUDED.marcador_visitante,
-              prob_over25 = EXCLUDED.prob_over25, prob_btts = EXCLUDED.prob_btts, actualizado_en = now()
-            WHERE predicciones.inicio > now() AND predicciones.resultado_local IS NULL";
-
-    $c->prepare($sql)->execute([
+    $params = [
         ':id'     => (int) $partido['id'],
         ':inicio' => gmdate('Y-m-d H:i:s', (int) $partido['inicio']) . '+00',
         ':liga'   => $partido['liga'] ?? '',
@@ -55,7 +45,42 @@ function guardarPrediccionReal(PDO $c, array $partido, array $L, array $V, int $
         ':mv'     => $m['marcador'][1],
         ':o25'    => $m['over'][2] ?? 0,
         ':bt'     => $m['btts'],
-    ]);
+    ];
+
+    $sqlNuevo = "INSERT INTO predicciones
+              (partido_id, inicio, liga, local_nombre, visitante_nombre, prob_local, prob_empate, prob_visitante,
+               marcador_local, marcador_visitante, prob_over25, prob_btts, hl_local, hl_empate, hl_visitante)
+            VALUES (:id, CAST(:inicio AS timestamptz), :liga, :ln, :vn, :pl, :pe, :pv, :ml, :mv, :o25, :bt, :hl1, :hle, :hl2)
+            ON CONFLICT (partido_id) DO UPDATE SET
+              inicio = EXCLUDED.inicio, liga = EXCLUDED.liga,
+              prob_local = EXCLUDED.prob_local, prob_empate = EXCLUDED.prob_empate, prob_visitante = EXCLUDED.prob_visitante,
+              marcador_local = EXCLUDED.marcador_local, marcador_visitante = EXCLUDED.marcador_visitante,
+              prob_over25 = EXCLUDED.prob_over25, prob_btts = EXCLUDED.prob_btts,
+              hl_local = EXCLUDED.hl_local, hl_empate = EXCLUDED.hl_empate, hl_visitante = EXCLUDED.hl_visitante,
+              actualizado_en = now()
+            WHERE predicciones.inicio > now() AND predicciones.resultado_local IS NULL";
+
+    $sqlBasico = "INSERT INTO predicciones
+              (partido_id, inicio, liga, local_nombre, visitante_nombre, prob_local, prob_empate, prob_visitante,
+               marcador_local, marcador_visitante, prob_over25, prob_btts)
+            VALUES (:id, CAST(:inicio AS timestamptz), :liga, :ln, :vn, :pl, :pe, :pv, :ml, :mv, :o25, :bt)
+            ON CONFLICT (partido_id) DO UPDATE SET
+              inicio = EXCLUDED.inicio, liga = EXCLUDED.liga,
+              prob_local = EXCLUDED.prob_local, prob_empate = EXCLUDED.prob_empate, prob_visitante = EXCLUDED.prob_visitante,
+              marcador_local = EXCLUDED.marcador_local, marcador_visitante = EXCLUDED.marcador_visitante,
+              prob_over25 = EXCLUDED.prob_over25, prob_btts = EXCLUDED.prob_btts, actualizado_en = now()
+            WHERE predicciones.inicio > now() AND predicciones.resultado_local IS NULL";
+
+    try {
+        $c->prepare($sqlNuevo)->execute($params + [
+            ':hl1' => $hl['local'] ?? null,
+            ':hle' => $hl['empate'] ?? null,
+            ':hl2' => $hl['visitante'] ?? null,
+        ]);
+    } catch (PDOException $e) {
+        error_log('Predicción guardada sin columnas de Highlightly (corre migracion_v3.sql): ' . $e->getMessage());
+        $c->prepare($sqlBasico)->execute($params);
+    }
 }
 
 /**
@@ -107,16 +132,18 @@ function resolverPendientes(PDO $c, ?string $apiKey, int $max = 3): int
     return $resueltos;
 }
 
-/** Resultado que la predicción consideraba más probable: L, E o V. */
-function pickPrediccion(array $f): string
+function pickDe(int $l, int $e, int $v): string
 {
-    $l = (int) $f['prob_local'];
-    $e = (int) $f['prob_empate'];
-    $v = (int) $f['prob_visitante'];
     $max = max($l, $e, $v);
     if ($l === $max) return 'L';
     if ($v === $max) return 'V';
     return 'E';
+}
+
+/** Resultado que la predicción consideraba más probable: L, E o V. */
+function pickPrediccion(array $f): string
+{
+    return pickDe((int) $f['prob_local'], (int) $f['prob_empate'], (int) $f['prob_visitante']);
 }
 
 function resultadoReal(array $f): string
@@ -131,7 +158,7 @@ function estadisticasAciertos(PDO $c): array
 {
     $filas = $c->query("SELECT * FROM predicciones WHERE resultado_local IS NOT NULL")->fetchAll(PDO::FETCH_ASSOC);
 
-    $t = ['total' => 0, 'x12' => 0, 'exacto' => 0, 'over25' => 0, 'over25_n' => 0, 'btts' => 0, 'btts_n' => 0];
+    $t = ['total' => 0, 'x12' => 0, 'exacto' => 0, 'over25' => 0, 'over25_n' => 0, 'btts' => 0, 'btts_n' => 0, 'hl_n' => 0, 'hl_x12' => 0, 'modelo_en_hl' => 0];
     foreach ($filas as $f) {
         $rl = (int) $f['resultado_local'];
         $rv = (int) $f['resultado_visitante'];
@@ -139,6 +166,16 @@ function estadisticasAciertos(PDO $c): array
 
         if (pickPrediccion($f) === resultadoReal($f)) {
             $t['x12']++;
+        }
+        if (($f['hl_local'] ?? null) !== null) {
+            $t['hl_n']++;
+            $real = resultadoReal($f);
+            if (pickDe((int) $f['hl_local'], (int) $f['hl_empate'], (int) $f['hl_visitante']) === $real) {
+                $t['hl_x12']++;
+            }
+            if (pickPrediccion($f) === $real) {
+                $t['modelo_en_hl']++;
+            }
         }
         if ((int) $f['marcador_local'] === $rl && (int) $f['marcador_visitante'] === $rv) {
             $t['exacto']++;

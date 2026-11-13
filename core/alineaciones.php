@@ -10,6 +10,7 @@
  *  - Ellos la refrescan cada 15 min, así que aquí la guardamos en caché 10 min.
  * Todo se cachea en archivos (core/cache/) para gastar lo mínimo del cupo diario.
  */
+require_once __DIR__ . '/../config/env.php';
 require_once __DIR__ . '/stats_reales.php';
 
 function alCacheRuta(string $clave): string
@@ -31,6 +32,12 @@ function alCacheLeer(string $clave, int $ttlSegundos): array
         }
     }
     return ['hit' => false, 'dato' => null];
+}
+
+function alCacheEdad(string $clave): int
+{
+    $ruta = alCacheRuta($clave);
+    return is_file($ruta) ? time() - (int) filemtime($ruta) : PHP_INT_MAX;
 }
 
 function alCacheEscribir(string $clave, $dato): void

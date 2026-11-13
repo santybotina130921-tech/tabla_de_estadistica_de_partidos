@@ -10,7 +10,8 @@
  *        → pronóstico por horas hasta 16 días (caché 3 h).
  * Open-Meteo no usa tu cupo de Highlightly; solo el detalle del partido gasta 1.
  */
-require_once __DIR__ . '/alineaciones.php'; // trae hlLlamar() y la caché en archivos
+require_once __DIR__ . '/alineaciones.php';
+require_once __DIR__ . '/detalle.php';
 
 /** GET sencillo SIN la key de Highlightly (esto va a otro servidor). */
 function clHttpGet(string $url): array
@@ -26,36 +27,19 @@ function clHttpGet(string $url): array
     return ['body' => $body === false ? '' : (string) $body, 'http' => $http];
 }
 
-/** Estadio y ciudad del partido (vienen en el detalle del partido de Highlightly). */
+/** Estadio y ciudad del partido (salen del detalle compartido, sin una petición aparte). */
 function clDetallePartido(?string $apiKey, int $matchId): ?array
 {
-    if (!$apiKey || !$matchId) {
+    $d = hlDetalleCompleto($apiKey, $matchId);
+    if (!$d) {
         return null;
     }
-    $clave = 'detalle_' . $matchId;
-    $c = alCacheLeer($clave, 24 * 3600);
-    if ($c['hit']) {
-        return $c['dato'];
-    }
-
-    $r = hlLlamar("https://soccer.highlightly.net/matches/$matchId", $apiKey);
-    if ($r['http'] !== 200) {
-        return null; // los fallos no se guardan
-    }
-    $d = json_decode((string) $r['body'], true);
-    if (is_array($d) && isset($d[0]) && is_array($d[0])) {
-        $d = $d[0]; // a veces viene envuelto en un arreglo
-    }
-    $venue = is_array($d) ? ($d['venue'] ?? null) : null;
-
-    $res = [
-        'estadio'   => $venue['name'] ?? null,
-        'ciudad'    => $venue['city'] ?? null,
-        'pais'      => $venue['country'] ?? null,
-        'capacidad' => $venue['capacity'] ?? null,
+    return [
+        'estadio'   => $d['estadio']['nombre'],
+        'ciudad'    => $d['estadio']['ciudad'],
+        'pais'      => $d['estadio']['pais'],
+        'capacidad' => $d['estadio']['capacidad'],
     ];
-    alCacheEscribir($clave, $res);
-    return $res;
 }
 
 /** Ciudad → coordenadas y zona horaria (geocodificación de Open-Meteo). */

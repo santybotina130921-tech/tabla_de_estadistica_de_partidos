@@ -19,8 +19,11 @@ $golEsLatam = (strpos((string) $liga_actual, 'HL_') === 0);
     <h2>⚽ Goleadores</h2>
 
     <?php if ($golFilas): ?>
+        <div class="hoy-buscador">
+            <input type="search" class="hoy-input tabla-buscar" data-tabla="tabla-goleadores" placeholder="Buscar jugador o equipo..." autocomplete="off" aria-label="Buscar jugador o equipo">
+        </div>
         <div class="gol-scroll">
-            <table class="goleadores">
+            <table class="goleadores" id="tabla-goleadores">
                 <thead>
                     <tr>
                         <th class="izq">#</th>

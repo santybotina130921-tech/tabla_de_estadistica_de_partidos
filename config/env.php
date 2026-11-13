@@ -31,3 +31,5 @@ function cargarEnv(string $path): void
 }
 
 cargarEnv(__DIR__ . '/../.env');
+
+date_default_timezone_set('America/Bogota');

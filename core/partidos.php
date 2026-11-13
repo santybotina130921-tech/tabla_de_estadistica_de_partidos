@@ -2,7 +2,7 @@
 require_once __DIR__ . '/ligas.php';
 require_once __DIR__ . '/alineaciones.php';
 
-function ptPresupuesto(int $maximo = 40): bool
+function ptPresupuesto(int $maximo = 60): bool
 {
     $clave = 'presupuesto_partidos_' . gmdate('Ymd');
     $c = alCacheLeer($clave, 86400);
@@ -43,17 +43,42 @@ function ptEstadoHL(string $descripcion): string
     return 'vivo';
 }
 
-function ptFootballData(string $desde, string $hasta): array
+function ptHayAccion(array $partidos): bool
 {
+    $ahora = time();
+    foreach ($partidos as $p) {
+        if (($p['estado'] ?? '') === 'vivo') {
+            return true;
+        }
+        $falta = (int) ($p['inicio'] ?? 0) - $ahora;
+        if (($p['estado'] ?? '') === 'programado' && $falta <= 900 && $falta > -10800) {
+            return true;
+        }
+    }
+    return false;
+}
+
+function ptFootballData(string $desde, string $hasta, bool $soloCache = false): array
+{
+    if ($soloCache) {
+        $guardado = alCacheLeer("fd_partidos_{$desde}_{$hasta}", 7 * 86400);
+        return $guardado['hit'] ? $guardado['dato'] + ['edad' => 0] : ['error' => null, 'partidos' => [], 'edad' => 0];
+    }
+
     $token = getenv('FOOTBALL_DATA_API_TOKEN');
     if (!$token) {
-        return ['error' => 'Falta FOOTBALL_DATA_API_TOKEN', 'partidos' => []];
+        return ['error' => 'Falta FOOTBALL_DATA_API_TOKEN', 'partidos' => [], 'edad' => 0];
     }
 
     $clave = "fd_partidos_{$desde}_{$hasta}";
-    $c = alCacheLeer($clave, 300);
-    if ($c['hit']) {
-        return $c['dato'];
+    $c = alCacheLeer($clave, 3600);
+    $edad = $c['hit'] ? alCacheEdad($clave) : PHP_INT_MAX;
+    if ($c['hit'] && is_array($c['dato'])) {
+        $limite = ptHayAccion($c['dato']['partidos'] ?? []) ? 60 : 300;
+        if ($edad < $limite) {
+            $c['dato']['edad'] = $edad;
+            return $c['dato'];
+        }
     }
 
     $ch = curl_init("https://api.football-data.org/v4/matches?dateFrom=$desde&dateTo=$hasta");
@@ -67,7 +92,12 @@ function ptFootballData(string $desde, string $hasta): array
     curl_close($ch);
 
     if ($http !== 200) {
-        return ['error' => "football-data.org respondió HTTP $http", 'partidos' => []];
+        if ($c['hit'] && is_array($c['dato'])) {
+            $c['dato']['error'] = "football-data.org respondió HTTP $http; se muestran los últimos datos guardados";
+            $c['dato']['edad'] = $edad;
+            return $c['dato'];
+        }
+        return ['error' => "football-data.org respondió HTTP $http", 'partidos' => [], 'edad' => 0];
     }
 
     $d = json_decode((string) $body, true);
@@ -85,29 +115,45 @@ function ptFootballData(string $desde, string $hasta): array
             'visitante_logo' => (string) ($m['awayTeam']['crest'] ?? ''),
             'gl'             => $m['score']['fullTime']['home'] ?? null,
             'gv'             => $m['score']['fullTime']['away'] ?? null,
+            'hl_id'          => 0,
         ];
     }
 
     $res = ['error' => null, 'partidos' => $partidos];
     alCacheEscribir($clave, $res);
+    $res['edad'] = 0;
     return $res;
 }
 
-function ptHighlightlyLiga(?string $apiKey, string $codigo, array $liga, string $fecha, bool $esHoy, int &$llamadas, int $maxLlamadas): array
+function ptHighlightlyLiga(?string $apiKey, string $codigo, array $liga, string $fecha, bool $esHoy, int &$llamadas, int $maxLlamadas, bool $soloCache = false): array
 {
     $clave = 'hl_partidos_' . $liga['id'] . '_' . $fecha;
-    $c = alCacheLeer($clave, $esHoy ? 3 * 3600 : 12 * 3600);
-    if ($c['hit']) {
-        return $c['dato'];
+    if ($soloCache) {
+        $guardado = alCacheLeer($clave, 7 * 86400);
+        return $guardado['hit'] ? $guardado['dato'] + ['edad' => 0] : ['error' => null, 'partidos' => [], 'edad' => 0];
     }
+    $c = alCacheLeer($clave, 12 * 3600);
+    $edad = $c['hit'] ? alCacheEdad($clave) : PHP_INT_MAX;
+
+    if ($c['hit'] && is_array($c['dato'])) {
+        $base = $esHoy ? 3 * 3600 : 12 * 3600;
+        $limite = ptHayAccion($c['dato']['partidos'] ?? []) ? 300 : $base;
+        if ($edad < $limite) {
+            $c['dato']['edad'] = $edad;
+            return $c['dato'];
+        }
+    }
+
+    $cacheViejo = ($c['hit'] && is_array($c['dato'])) ? $c['dato'] + ['edad' => $edad] : null;
+
     if (!$apiKey) {
-        return ['error' => 'Falta HIGHLIGHTLY_API_KEY', 'partidos' => []];
+        return ['error' => 'Falta HIGHLIGHTLY_API_KEY', 'partidos' => [], 'edad' => 0];
     }
     if ($llamadas >= $maxLlamadas) {
-        return ['error' => 'pendiente', 'partidos' => []];
+        return $cacheViejo ?: ['error' => 'pendiente', 'partidos' => [], 'edad' => 0];
     }
     if (!ptPresupuesto()) {
-        return ['error' => 'presupuesto', 'partidos' => []];
+        return $cacheViejo ?: ['error' => 'presupuesto', 'partidos' => [], 'edad' => 0];
     }
     $llamadas++;
 
@@ -127,7 +173,7 @@ function ptHighlightlyLiga(?string $apiKey, string $codigo, array $liga, string 
         }
     }
     if ($r['http'] !== 200) {
-        return ['error' => 'Highlightly respondió HTTP ' . $r['http'], 'partidos' => []];
+        return $cacheViejo ?: ['error' => 'Highlightly respondió HTTP ' . $r['http'], 'partidos' => [], 'edad' => 0];
     }
 
     $d = json_decode((string) $r['body'], true);
@@ -154,11 +200,13 @@ function ptHighlightlyLiga(?string $apiKey, string $codigo, array $liga, string 
             'visitante_logo' => (string) ($m['awayTeam']['logo'] ?? ''),
             'gl'             => $gl,
             'gv'             => $gv,
+            'hl_id'          => (int) ($m['id'] ?? 0),
         ];
     }
 
     $res = ['error' => null, 'partidos' => $partidos];
     alCacheEscribir($clave, $res);
+    $res['edad'] = 0;
     return $res;
 }
 
@@ -175,7 +223,7 @@ function ptEtiquetaFecha(string $fecha): string
     return $dias[(int) $f->format('w')] . ' ' . $f->format('j') . ' de ' . $meses[(int) $f->format('n') - 1];
 }
 
-function ptPartidosDelDia(string $dia): array
+function ptPartidosDelDia(string $dia, bool $soloCache = false): array
 {
     $zona = new DateTimeZone('America/Bogota');
     $base = new DateTime('now', $zona);
@@ -193,11 +241,13 @@ function ptPartidosDelDia(string $dia): array
 
     $partidos = [];
     $avisos = [];
+    $edades = [];
 
-    $fd = ptFootballData(gmdate('Y-m-d', $inicioDia - 86400), gmdate('Y-m-d', $finDia + 86400));
+    $fd = ptFootballData(gmdate('Y-m-d', $inicioDia - 86400), gmdate('Y-m-d', $finDia + 86400), $soloCache);
     if ($fd['error']) {
         $avisos[] = $fd['error'];
     }
+    $edades[] = (int) ($fd['edad'] ?? 0);
     foreach ($fd['partidos'] as $p) {
         if ($p['inicio'] >= $inicioDia && $p['inicio'] < $finDia) {
             $partidos[] = $p;
@@ -209,7 +259,7 @@ function ptPartidosDelDia(string $dia): array
     $pendientes = 0;
     $sinCupo = false;
     foreach (ligasHighlightly() as $codigo => $liga) {
-        $r = ptHighlightlyLiga($apiKey, $codigo, $liga, $fecha, $esHoy, $llamadas, 6);
+        $r = ptHighlightlyLiga($apiKey, $codigo, $liga, $fecha, $esHoy, $llamadas, 6, $soloCache);
         if ($r['error'] === 'pendiente') {
             $pendientes++;
             continue;
@@ -220,8 +270,8 @@ function ptPartidosDelDia(string $dia): array
         }
         if ($r['error']) {
             $avisos[] = $liga['nombre'] . ': ' . $r['error'];
-            continue;
         }
+        $edades[] = (int) ($r['edad'] ?? 0);
         foreach ($r['partidos'] as $p) {
             if ($p['inicio'] >= $inicioDia && $p['inicio'] < $finDia) {
                 $partidos[] = $p;
@@ -256,5 +306,6 @@ function ptPartidosDelDia(string $dia): array
         'total'      => count($partidos),
         'pendientes' => $pendientes,
         'hayVivo'    => $hayVivo,
+        'edad'       => $edades ? max($edades) : 0,
     ];
 }
