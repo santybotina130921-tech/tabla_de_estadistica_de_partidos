@@ -157,7 +157,9 @@ function mpMapearLiga(PDO $c, ?string $apiKey, string $codigo, array $cfg, int $
     $usadosHl = [];
     foreach ($filas as $f) {
         $yaMapeados[$f['equipo_nombre']] = (int) $f['highlightly_id'];
-        $usadosHl[(int) $f['highlightly_id']] = true;
+        if (in_array($f['equipo_nombre'], $nuestros, true)) {
+            $usadosHl[(int) $f['highlightly_id']] = true;
+        }
     }
 
     $pendientes = array_values(array_filter($nuestros, fn($n) => !isset($yaMapeados[$n])));
@@ -188,24 +190,35 @@ function mpMapearLiga(PDO $c, ?string $apiKey, string $codigo, array $cfg, int $
     $libres = array_filter($hl, fn($id) => !isset($usadosHl[$id]), ARRAY_FILTER_USE_KEY);
 
     $dudosos = [];
-    if (count($restantes) === 1 && count($libres) === 1) {
-        $nombre = $restantes[0];
-        $id = (int) array_key_first($libres);
-        $asignados[$nombre] = ['id' => $id, 'hl' => $libres[$id], 'score' => round(mpPuntuacion($nombre, $libres[$id]), 2), 'metodo' => 'por descarte'];
-        $restantes = [];
-    } else {
+    if ($restantes && count($restantes) === count($libres) && count($restantes) <= 3) {
+        $paresFinales = [];
         foreach ($restantes as $nombre) {
-            $mejor = null;
-            $mejorScore = 0.0;
-            foreach ($libres as $nombreHl) {
-                $s = mpPuntuacion($nombre, $nombreHl);
-                if ($s > $mejorScore) {
-                    $mejorScore = $s;
-                    $mejor = $nombreHl;
-                }
+            foreach ($libres as $id => $nombreHl) {
+                $paresFinales[] = [mpPuntuacion($nombre, $nombreHl), $nombre, $id, $nombreHl];
             }
-            $dudosos[] = ['nombre' => $nombre, 'candidato' => $mejor, 'score' => round($mejorScore, 2)];
         }
+        usort($paresFinales, fn($a, $b) => $b[0] <=> $a[0]);
+        foreach ($paresFinales as [$score, $nombre, $id, $nombreHl]) {
+            if (isset($asignados[$nombre]) || isset($usadosHl[$id])) {
+                continue;
+            }
+            $asignados[$nombre] = ['id' => $id, 'hl' => $nombreHl, 'score' => round($score, 2), 'metodo' => 'por descarte'];
+            $usadosHl[$id] = true;
+        }
+        $restantes = array_values(array_filter($restantes, fn($n) => !isset($asignados[$n])));
+        $libres = array_filter($hl, fn($id) => !isset($usadosHl[$id]), ARRAY_FILTER_USE_KEY);
+    }
+    foreach ($restantes as $nombre) {
+        $mejor = null;
+        $mejorScore = 0.0;
+        foreach ($libres as $nombreHl) {
+            $s = mpPuntuacion($nombre, $nombreHl);
+            if ($s > $mejorScore) {
+                $mejorScore = $s;
+                $mejor = $nombreHl;
+            }
+        }
+        $dudosos[] = ['nombre' => $nombre, 'candidato' => $mejor, 'score' => round($mejorScore, 2)];
     }
 
     $guardar = $c->prepare(
@@ -229,5 +242,41 @@ function mpMapearLiga(PDO $c, ?string $apiKey, string $codigo, array $cfg, int $
         'mapeados'    => count($asignados),
         'detalle'     => $detalle,
         'sin_mapear'  => $dudosos,
+        'libres'      => array_values($libres),
     ];
+}
+
+function mpVincularManual(PDO $c, ?string $apiKey, string $nombre, string $texto): array
+{
+    $texto = trim($texto);
+    if ($nombre === '' || $texto === '') {
+        return ['ok' => false, 'msg' => 'Faltan datos.'];
+    }
+
+    $existe = $c->prepare("SELECT 1 FROM estadisticas_reales WHERE equipo_nombre = :n LIMIT 1");
+    $existe->execute([':n' => $nombre]);
+    if (!$existe->fetchColumn()) {
+        return ['ok' => false, 'msg' => 'Ese equipo no está en tu base de datos.'];
+    }
+
+    if (ctype_digit($texto)) {
+        $id = (int) $texto;
+        $nombreHl = 'ID ' . $id;
+    } else {
+        $r = hlLlamar('https://soccer.highlightly.net/teams?name=' . urlencode($texto), $apiKey);
+        $d = json_decode((string) $r['body'], true);
+        $t = $d['data'][0] ?? null;
+        if (!$t) {
+            return ['ok' => false, 'msg' => 'Highlightly no encontró un equipo llamado «' . $texto . '». El nombre debe ser exacto, o escribe su ID numérico.'];
+        }
+        $id = (int) $t['id'];
+        $nombreHl = (string) $t['name'];
+    }
+
+    $c->prepare(
+        "INSERT INTO equipo_stats_reales (equipo_nombre, highlightly_id) VALUES (:n, :i)
+         ON CONFLICT (equipo_nombre) DO UPDATE SET highlightly_id = EXCLUDED.highlightly_id"
+    )->execute([':n' => $nombre, ':i' => $id]);
+
+    return ['ok' => true, 'msg' => '«' . $nombre . '» quedó vinculado con «' . $nombreHl . '» (id ' . $id . ').'];
 }

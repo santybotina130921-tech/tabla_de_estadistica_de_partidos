@@ -26,7 +26,7 @@ function cronLlamar(string $ruta): array
     return is_array($d) ? $d : ['ok' => false, 'msg' => 'respuesta no válida'];
 }
 
-$europa = ['CL', 'PL', 'PD', 'BL1', 'SA', 'FL1', 'PPL', 'DED', 'BSA', 'ELC', 'WC', 'EC'];
+$europa = ['CL', 'PL', 'PD', 'BL1', 'SA', 'FL1', 'PPL', 'DED', 'BSA', 'ELC'];
 
 $ultimaTabla = [];
 foreach ($conexion->query("SELECT liga_id, MAX(actualizado_en) AS u FROM estadisticas_reales GROUP BY liga_id")->fetchAll(PDO::FETCH_ASSOC) as $f) {
@@ -66,7 +66,8 @@ if ($vencidas) {
     $t = $vencidas[0];
     $r = cronLlamar($t['ruta']);
     $ok = !empty($r['ok']);
-    alCacheEscribir('cron_intento_' . $t['tipo'] . '_' . $t['liga'], $ok ? time() : time() - $t['intervalo'] + 3600);
+    $errorPermanente = !$ok && preg_match('/HTTP (403|404)/', (string) ($r['msg'] ?? '')) === 1;
+    alCacheEscribir('cron_intento_' . $t['tipo'] . '_' . $t['liga'], ($ok || $errorPermanente) ? time() : time() - $t['intervalo'] + 3600);
     $hecho = ['liga' => $t['liga'], 'tipo' => $t['tipo'], 'ok' => $ok, 'msg' => $r['msg'] ?? ''];
 }
 

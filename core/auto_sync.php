@@ -17,7 +17,7 @@
 // Cambia esto si tu carpeta se llama distinto:
 $BASE = 'http://localhost/tabla_de_estadistica_de_partidos/core/';
 
-$europa = ['CL', 'PL', 'PD', 'BL1', 'SA', 'FL1', 'PPL', 'DED', 'BSA', 'ELC', 'WC', 'EC'];
+$europa = ['CL', 'PL', 'PD', 'BL1', 'SA', 'FL1', 'PPL', 'DED', 'BSA', 'ELC'];
 $latam  = ['HL_COL', 'HL_ARG', 'HL_CHI', 'HL_URU', 'HL_PAR', 'HL_PER', 'HL_ECU', 'HL_MEX', 'HL_MLS', 'HL_SAU', 'HL_LIB', 'HL_SUD'];
 
 function llamarLocal(string $url): string

@@ -13,6 +13,18 @@ if ($claveAdmin === '' || !hash_equals($claveAdmin, $claveRecibida)) {
 
 $ligas = mpLigasFootballData();
 
+if (($_GET['accion'] ?? '') === 'vincular') {
+    header('Content-Type: application/json; charset=utf-8');
+    try {
+        $resultado = mpVincularManual($conexion, getenv('HIGHLIGHTLY_API_KEY'), (string) ($_GET['nombre'] ?? ''), (string) ($_GET['hl'] ?? ''));
+    } catch (Exception $e) {
+        error_log('Vincular equipo: ' . $e->getMessage());
+        $resultado = ['ok' => false, 'msg' => 'Error al guardar: ' . $e->getMessage()];
+    }
+    echo json_encode($resultado, JSON_UNESCAPED_UNICODE);
+    exit;
+}
+
 if (isset($_GET['liga'])) {
     header('Content-Type: application/json; charset=utf-8');
     $codigo = (string) $_GET['liga'];
@@ -69,6 +81,39 @@ if (isset($_GET['liga'])) {
             log.appendChild(p);
         }
 
+        function manual(nombre, candidato) {
+            const caja = crear('div', 'mapeo-manual');
+            caja.appendChild(crear('span', 'mapeo-nombre', 'Sin vincular: ' + nombre));
+
+            const campo = document.createElement('input');
+            campo.type = 'text';
+            campo.className = 'hoy-input mapeo-input';
+            campo.placeholder = 'Nombre exacto en Highlightly o su ID';
+            campo.value = candidato || '';
+
+            const boton = crear('button', 'hoy-reintentar', 'Vincular');
+            boton.type = 'button';
+            const estado = crear('span', 'mapeo-estado', '');
+
+            boton.addEventListener('click', async function () {
+                estado.textContent = '...';
+                const d = await pedirJson('mapear-equipos.php?clave=' + encodeURIComponent(clave) + '&accion=vincular&nombre=' + encodeURIComponent(nombre) + '&hl=' + encodeURIComponent(campo.value));
+                estado.textContent = (d.ok ? '✅ ' : '⚠️ ') + d.msg;
+            });
+
+            caja.appendChild(campo);
+            caja.appendChild(boton);
+            caja.appendChild(estado);
+            log.appendChild(caja);
+        }
+
+        function crear(etiqueta, clase, texto) {
+            const el = document.createElement(etiqueta);
+            el.className = clase;
+            el.textContent = texto;
+            return el;
+        }
+
         async function pedirJson(url) {
             const res = await fetch(url);
             const texto = await res.text();
@@ -91,7 +136,10 @@ if (isset($_GET['liga'])) {
                         fila.textContent = '✅ ' + liga + ': ' + d.mapeados + ' vinculados ahora, ' + d.ya_estaban + ' ya estaban, ' + d.sin_mapear.length + ' sin vincular (de ' + d.total + ').';
                         fila.className = 'mapeo-linea ' + (d.sin_mapear.length ? 'mal' : 'ok');
                         d.detalle.filter(x => x.score < 0.8).forEach(x => detalle('revisar: ' + x.nombre + ' → ' + x.hl + ' (' + x.metodo + ', ' + x.score + ')'));
-                        d.sin_mapear.forEach(x => detalle('sin vincular: ' + x.nombre + (x.candidato ? ' (¿' + x.candidato + '?)' : '')));
+                        d.sin_mapear.forEach(x => manual(x.nombre, x.candidato));
+                        if (d.sin_mapear.length && d.libres.length) {
+                            detalle('equipos de Highlightly que quedaron libres en esta liga: ' + d.libres.join(', '));
+                        }
                     }
                 } catch (e) {
                     fila.textContent = '⚠️ ' + liga + ': no hubo conexión con el servidor (' + e.message + ').';

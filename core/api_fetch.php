@@ -3,7 +3,7 @@ require_once __DIR__ . '/../config/database.php';
 
 $apiToken = getenv('FOOTBALL_DATA_API_TOKEN');
 $baseUrl  = "https://api.football-data.org/v4/competitions/";
-$competencias = ['CL', 'PL', 'PD', 'BL1', 'SA', 'FL1', 'PPL', 'DED', 'BSA', 'ELC', 'WC', 'EC'];
+$competencias = ['CL', 'PL', 'PD', 'BL1', 'SA', 'FL1', 'PPL', 'DED', 'BSA', 'ELC'];
 
 function pedirStandings(string $url, string $token): array
 {
