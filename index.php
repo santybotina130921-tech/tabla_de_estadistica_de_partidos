@@ -413,7 +413,7 @@ if (!empty($seleccion['local']) && !empty($seleccion['visitante'])) {
 
                 <?php include 'includes/graficos_view.php'; ?>
                 <?php include 'includes/comparador_view.php'; ?>
-                <?php include 'includes/clima_view.php'; ?>
+                <?php include 'includes/Clima_view.php'; ?>
                 <?php include 'includes/alineaciones_view.php'; ?>
             <?php endif; ?>
         </div>
